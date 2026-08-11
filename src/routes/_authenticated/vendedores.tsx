@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Plus, Pencil, Trash2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -30,12 +30,6 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/vendedores")({
   component: SellersPage,
-  loader: async ({ context }) => {
-    await context.queryClient.ensureQueryData({
-      queryKey: ["sellers"],
-      queryFn: () => listSellers(),
-    });
-  },
   head: () => ({
     meta: [
       { title: "Vendedores | Força de Vendas" },
