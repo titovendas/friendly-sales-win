@@ -88,17 +88,12 @@ export const getDashboardStats = createServerFn({ method: "GET" })
       .order("created_at", { ascending: false })
       .limit(5);
 
-    const { data: monthlySales } = await supabase.rpc("get_monthly_sales", {
-      p_user_id: userId,
-    });
-
     return {
       customersCount: customersCount ?? 0,
       productsCount: productsCount ?? 0,
       sellersCount: sellersCount ?? 0,
       ordersCount: ordersCount ?? 0,
       recentOrders: recentOrders ?? [],
-      monthlySales: monthlySales ?? [],
     };
   });
 
