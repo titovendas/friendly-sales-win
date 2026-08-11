@@ -48,7 +48,7 @@ const emptySeller = {
 
 function SellersPage() {
   const queryClient = useQueryClient();
-  const { data: sellers } = useSuspenseQuery({
+  const { data: sellers = [], isLoading } = useQuery({
     queryKey: ["sellers"],
     queryFn: () => listSellers(),
   });
@@ -59,7 +59,7 @@ function SellersPage() {
   const [loading, setLoading] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const filtered = sellers.filter((s) =>
+  const filtered = sellers.filter((s: any) =>
     s.name.toLowerCase().includes(search.toLowerCase())
   );
 
