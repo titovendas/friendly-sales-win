@@ -36,7 +36,7 @@ export const Route = createFileRoute("/_authenticated/pedidos")({
 
 function OrdersPage() {
   const queryClient = useQueryClient();
-  const { data: orders } = useSuspenseQuery({
+  const { data: orders = [], isLoading } = useQuery({
     queryKey: ["orders"],
     queryFn: () => listOrders(),
   });
@@ -46,7 +46,7 @@ function OrdersPage() {
   const [loading, setLoading] = useState(false);
 
   const filtered = orders.filter(
-    (o) =>
+    (o: any) =>
       o.customer_name?.toLowerCase().includes(search.toLowerCase()) ||
       o.seller_name?.toLowerCase().includes(search.toLowerCase()) ||
       o.id?.toLowerCase().includes(search.toLowerCase())
