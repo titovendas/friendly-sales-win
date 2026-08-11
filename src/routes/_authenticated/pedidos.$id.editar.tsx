@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo, useEffect } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -32,26 +32,6 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/pedidos/$id/editar")({
   component: EditOrderPage,
-  loader: async ({ context, params }) => {
-    await Promise.all([
-      context.queryClient.ensureQueryData({
-        queryKey: ["customers"],
-        queryFn: () => listCustomers(),
-      }),
-      context.queryClient.ensureQueryData({
-        queryKey: ["products"],
-        queryFn: () => listProducts(),
-      }),
-      context.queryClient.ensureQueryData({
-        queryKey: ["sellers"],
-        queryFn: () => listSellers(),
-      }),
-      context.queryClient.ensureQueryData({
-        queryKey: ["order", params.id],
-        queryFn: () => getOrder({ data: { id: params.id } }),
-      }),
-    ]);
-  },
   head: ({ params }) => ({
     meta: [
       { title: `Editar Pedido #${params.id.slice(0, 8)} | Força de Vendas` },
