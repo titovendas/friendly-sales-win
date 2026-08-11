@@ -262,7 +262,7 @@ function EditOrderPage() {
                         <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
                       <SelectContent>
-                        {activeProducts.map((p) => (
+                        {activeProducts.map((p: any) => (
                           <SelectItem key={p.id} value={p.id!}>
                             {p.name} — {formatCurrency(p.price)}
                           </SelectItem>
