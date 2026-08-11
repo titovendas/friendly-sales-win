@@ -94,6 +94,7 @@ function NewOrderPage() {
     setItems((prev) => {
       const next = [...prev];
       const current = next[index];
+      if (!current) return prev;
       if (updates.product_id !== undefined) {
         current.product_id = updates.product_id;
         const product = products.find((p) => p.id === updates.product_id);
