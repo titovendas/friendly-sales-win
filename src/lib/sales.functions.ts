@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const orderStatusSchema = z.enum([
   "pending",
@@ -54,69 +55,41 @@ const orderSchema = z.object({
   items: z.array(orderItemSchema).min(1),
 });
 
-// Helpers to load supabase inside handlers to keep module scope thin
-async function getSupabase() {
-  const { requireSupabaseAuth } = await import(
-    "@/integrations/supabase/auth-middleware"
-  );
-  const { createServerClient } = await import(
-    "@/integrations/supabase/client.server"
-  );
-  return createServerClient();
-}
-
-async function getAuthenticatedSupabase() {
-  const { requireSupabaseAuth } = await import(
-    "@/integrations/supabase/auth-middleware"
-  );
-  const { createServerClient } = await import(
-    "@/integrations/supabase/client.server"
-  );
-  const supabase = createServerClient();
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-  if (error || !user) {
-    throw new Response("Unauthorized", { status: 401 });
-  }
-  return { supabase, user };
-}
-
 // Dashboard stats
-export const getDashboardStats = createServerFn({ method: "GET" }).handler(
-  async () => {
-    const { supabase, user } = await getAuthenticatedSupabase();
+export const getDashboardStats = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
 
     const { count: customersCount } = await supabase
       .from("customers")
       .select("id", { count: "exact", head: true })
-      .eq("user_id", user.id);
+      .eq("user_id", userId);
 
     const { count: productsCount } = await supabase
       .from("products")
       .select("id", { count: "exact", head: true })
-      .eq("user_id", user.id);
+      .eq("user_id", userId);
 
     const { count: sellersCount } = await supabase
       .from("sellers")
       .select("id", { count: "exact", head: true })
-      .eq("user_id", user.id);
+      .eq("user_id", userId);
 
     const { count: ordersCount } = await supabase
       .from("orders")
       .select("id", { count: "exact", head: true })
-      .eq("user_id", user.id);
+      .eq("user_id", userId);
 
     const { data: recentOrders } = await supabase
       .from("order_summary")
       .select("*")
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(5);
 
     const { data: monthlySales } = await supabase.rpc("get_monthly_sales", {
-      p_user_id: user.id,
+      p_user_id: userId,
     });
 
     return {
@@ -127,29 +100,29 @@ export const getDashboardStats = createServerFn({ method: "GET" }).handler(
       recentOrders: recentOrders ?? [],
       monthlySales: monthlySales ?? [],
     };
-  }
-);
+  });
 
 // Customers
-export const listCustomers = createServerFn({ method: "GET" }).handler(
-  async () => {
-    const { supabase, user } = await getAuthenticatedSupabase();
+export const listCustomers = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
     const { data, error } = await supabase
       .from("customers")
       .select("*")
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .order("name");
     if (error) throw new Error(error.message);
     return data ?? [];
-  }
-);
+  });
 
 export const upsertCustomer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((data) => customerSchema.parse(data))
-  .handler(async ({ data }) => {
-    const { supabase, user } = await getAuthenticatedSupabase();
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
     const payload = {
-      user_id: user.id,
+      user_id: userId,
       name: data.name,
       email: data.email || null,
       phone: data.phone || null,
@@ -164,7 +137,7 @@ export const upsertCustomer = createServerFn({ method: "POST" })
         .from("customers")
         .update(payload)
         .eq("id", data.id)
-        .eq("user_id", user.id)
+        .eq("user_id", userId)
         .select()
         .single();
       if (error) throw new Error(error.message);
@@ -181,38 +154,40 @@ export const upsertCustomer = createServerFn({ method: "POST" })
   });
 
 export const deleteCustomer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((data) => z.object({ id: z.string().uuid() }).parse(data))
-  .handler(async ({ data }) => {
-    const { supabase, user } = await getAuthenticatedSupabase();
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
     const { error } = await supabase
       .from("customers")
       .delete()
       .eq("id", data.id)
-      .eq("user_id", user.id);
+      .eq("user_id", userId);
     if (error) throw new Error(error.message);
     return { success: true };
   });
 
 // Products
-export const listProducts = createServerFn({ method: "GET" }).handler(
-  async () => {
-    const { supabase, user } = await getAuthenticatedSupabase();
+export const listProducts = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
     const { data, error } = await supabase
       .from("products")
       .select("*")
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .order("name");
     if (error) throw new Error(error.message);
     return data ?? [];
-  }
-);
+  });
 
 export const upsertProduct = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((data) => productSchema.parse(data))
-  .handler(async ({ data }) => {
-    const { supabase, user } = await getAuthenticatedSupabase();
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
     const payload = {
-      user_id: user.id,
+      user_id: userId,
       name: data.name,
       description: data.description || null,
       sku: data.sku || null,
@@ -227,7 +202,7 @@ export const upsertProduct = createServerFn({ method: "POST" })
         .from("products")
         .update(payload)
         .eq("id", data.id)
-        .eq("user_id", user.id)
+        .eq("user_id", userId)
         .select()
         .single();
       if (error) throw new Error(error.message);
@@ -244,38 +219,40 @@ export const upsertProduct = createServerFn({ method: "POST" })
   });
 
 export const deleteProduct = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((data) => z.object({ id: z.string().uuid() }).parse(data))
-  .handler(async ({ data }) => {
-    const { supabase, user } = await getAuthenticatedSupabase();
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
     const { error } = await supabase
       .from("products")
       .delete()
       .eq("id", data.id)
-      .eq("user_id", user.id);
+      .eq("user_id", userId);
     if (error) throw new Error(error.message);
     return { success: true };
   });
 
 // Sellers
-export const listSellers = createServerFn({ method: "GET" }).handler(
-  async () => {
-    const { supabase, user } = await getAuthenticatedSupabase();
+export const listSellers = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
     const { data, error } = await supabase
       .from("sellers")
       .select("*")
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .order("name");
     if (error) throw new Error(error.message);
     return data ?? [];
-  }
-);
+  });
 
 export const upsertSeller = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((data) => sellerSchema.parse(data))
-  .handler(async ({ data }) => {
-    const { supabase, user } = await getAuthenticatedSupabase();
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
     const payload = {
-      user_id: user.id,
+      user_id: userId,
       name: data.name,
       email: data.email || null,
       phone: data.phone || null,
@@ -287,7 +264,7 @@ export const upsertSeller = createServerFn({ method: "POST" })
         .from("sellers")
         .update(payload)
         .eq("id", data.id)
-        .eq("user_id", user.id)
+        .eq("user_id", userId)
         .select()
         .single();
       if (error) throw new Error(error.message);
@@ -304,41 +281,43 @@ export const upsertSeller = createServerFn({ method: "POST" })
   });
 
 export const deleteSeller = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((data) => z.object({ id: z.string().uuid() }).parse(data))
-  .handler(async ({ data }) => {
-    const { supabase, user } = await getAuthenticatedSupabase();
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
     const { error } = await supabase
       .from("sellers")
       .delete()
       .eq("id", data.id)
-      .eq("user_id", user.id);
+      .eq("user_id", userId);
     if (error) throw new Error(error.message);
     return { success: true };
   });
 
 // Orders
-export const listOrders = createServerFn({ method: "GET" }).handler(
-  async () => {
-    const { supabase, user } = await getAuthenticatedSupabase();
+export const listOrders = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
     const { data, error } = await supabase
       .from("order_summary")
       .select("*")
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     return data ?? [];
-  }
-);
+  });
 
 export const getOrder = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((data) => z.object({ id: z.string().uuid() }).parse(data))
-  .handler(async ({ data }) => {
-    const { supabase, user } = await getAuthenticatedSupabase();
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
     const { data: order, error } = await supabase
       .from("order_summary")
       .select("*")
       .eq("id", data.id)
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .single();
     if (error) throw new Error(error.message);
 
@@ -352,9 +331,10 @@ export const getOrder = createServerFn({ method: "GET" })
   });
 
 export const upsertOrder = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((data) => orderSchema.parse(data))
-  .handler(async ({ data }) => {
-    const { supabase, user } = await getAuthenticatedSupabase();
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
 
     const total = data.items.reduce(
       (sum, item) => sum + item.quantity * item.unit_price,
@@ -362,7 +342,7 @@ export const upsertOrder = createServerFn({ method: "POST" })
     );
 
     const orderPayload = {
-      user_id: user.id,
+      user_id: userId,
       customer_id: data.customer_id,
       seller_id: data.seller_id,
       status: data.status,
@@ -376,7 +356,7 @@ export const upsertOrder = createServerFn({ method: "POST" })
         .from("orders")
         .update(orderPayload)
         .eq("id", orderId)
-        .eq("user_id", user.id);
+        .eq("user_id", userId);
       if (error) throw new Error(error.message);
 
       await supabase.from("order_items").delete().eq("order_id", orderId);
@@ -407,6 +387,7 @@ export const upsertOrder = createServerFn({ method: "POST" })
   });
 
 export const updateOrderStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((data) =>
     z
       .object({
@@ -415,26 +396,27 @@ export const updateOrderStatus = createServerFn({ method: "POST" })
       })
       .parse(data)
   )
-  .handler(async ({ data }) => {
-    const { supabase, user } = await getAuthenticatedSupabase();
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
     const { error } = await supabase
       .from("orders")
       .update({ status: data.status })
       .eq("id", data.id)
-      .eq("user_id", user.id);
+      .eq("user_id", userId);
     if (error) throw new Error(error.message);
     return { success: true };
   });
 
 export const deleteOrder = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((data) => z.object({ id: z.string().uuid() }).parse(data))
-  .handler(async ({ data }) => {
-    const { supabase, user } = await getAuthenticatedSupabase();
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
     const { error } = await supabase
       .from("orders")
       .delete()
       .eq("id", data.id)
-      .eq("user_id", user.id);
+      .eq("user_id", userId);
     if (error) throw new Error(error.message);
     return { success: true };
   });
