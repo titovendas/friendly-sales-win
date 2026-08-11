@@ -152,7 +152,16 @@ function CustomersPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.length === 0 ? (
+            {isLoading ? (
+              <TableRow>
+                <TableCell
+                  colSpan={5}
+                  className="h-32 text-center text-muted-foreground"
+                >
+                  Carregando...
+                </TableCell>
+              </TableRow>
+            ) : filtered.length === 0 ? (
               <TableRow>
                 <TableCell
                   colSpan={5}
@@ -162,7 +171,7 @@ function CustomersPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              filtered.map((customer) => (
+              filtered.map((customer: any) => (
                 <TableRow key={customer.id}>
                   <TableCell className="font-medium">{customer.name}</TableCell>
                   <TableCell>{customer.email || "—"}</TableCell>
