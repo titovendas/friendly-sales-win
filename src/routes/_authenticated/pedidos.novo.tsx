@@ -43,15 +43,15 @@ type OrderItem = {
 function NewOrderPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { data: customers } = useSuspenseQuery({
+  const { data: customers = [] } = useQuery({
     queryKey: ["customers"],
     queryFn: () => listCustomers(),
   });
-  const { data: products } = useSuspenseQuery({
+  const { data: products = [] } = useQuery({
     queryKey: ["products"],
     queryFn: () => listProducts(),
   });
-  const { data: sellers } = useSuspenseQuery({
+  const { data: sellers = [] } = useQuery({
     queryKey: ["sellers"],
     queryFn: () => listSellers(),
   });
