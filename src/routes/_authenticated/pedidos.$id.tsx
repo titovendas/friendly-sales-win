@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Package, User, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,12 +22,6 @@ import {
 
 export const Route = createFileRoute("/_authenticated/pedidos/$id")({
   component: OrderDetailPage,
-  loader: async ({ context, params }) => {
-    await context.queryClient.ensureQueryData({
-      queryKey: ["order", params.id],
-      queryFn: () => getOrder({ data: { id: params.id } }),
-    });
-  },
   head: ({ params }) => ({
     meta: [
       { title: `Pedido #${params.id.slice(0, 8)} | Força de Vendas` },
