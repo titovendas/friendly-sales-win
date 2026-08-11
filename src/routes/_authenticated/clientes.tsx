@@ -50,7 +50,7 @@ const emptyCustomer = {
 
 function CustomersPage() {
   const queryClient = useQueryClient();
-  const { data: customers } = useSuspenseQuery({
+  const { data: customers = [], isLoading } = useQuery({
     queryKey: ["customers"],
     queryFn: () => listCustomers(),
   });
@@ -61,7 +61,7 @@ function CustomersPage() {
   const [loading, setLoading] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const filtered = customers.filter((c) =>
+  const filtered = customers.filter((c: any) =>
     c.name.toLowerCase().includes(search.toLowerCase())
   );
 
