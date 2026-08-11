@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Plus, Pencil, Trash2, Search, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -26,12 +26,6 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/pedidos")({
   component: OrdersPage,
-  loader: async ({ context }) => {
-    await context.queryClient.ensureQueryData({
-      queryKey: ["orders"],
-      queryFn: () => listOrders(),
-    });
-  },
   head: () => ({
     meta: [
       { title: "Pedidos | Força de Vendas" },
