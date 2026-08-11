@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import {
   Users,
   Package,
@@ -24,12 +24,6 @@ import { formatCurrency, formatDate, statusLabel, statusVariant } from "@/lib/sa
 
 export const Route = createFileRoute("/_authenticated/")({
   component: DashboardPage,
-  loader: async ({ context }) => {
-    await context.queryClient.ensureQueryData({
-      queryKey: ["dashboard-stats"],
-      queryFn: () => getDashboardStats(),
-    });
-  },
   head: () => ({
     meta: [
       { title: "Dashboard | Força de Vendas" },
