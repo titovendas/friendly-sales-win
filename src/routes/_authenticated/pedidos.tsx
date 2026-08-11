@@ -125,9 +125,9 @@ function OrdersPage() {
               </TableRow>
             ) : (
               filtered.map((order) => (
-                <TableRow key={order.id}>
+                <TableRow key={order.id!}>
                   <TableCell className="font-medium">
-                    #{order.id.slice(0, 8)}
+                    #{order.id!.slice(0, 8)}
                   </TableCell>
                   <TableCell>{order.customer_name || "—"}</TableCell>
                   <TableCell>{order.seller_name || "—"}</TableCell>
@@ -136,25 +136,25 @@ function OrdersPage() {
                     {formatCurrency(order.total)}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={statusVariant(order.status)}>
-                      {statusLabel(order.status)}
+                    <Badge variant={statusVariant(order.status!)}>
+                      {statusLabel(order.status!)}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="icon" asChild>
-                      <Link to="/pedidos/$id" params={{ id: order.id }}>
+                      <Link to="/pedidos/$id" params={{ id: order.id! }}>
                         <Eye className="h-4 w-4" />
                       </Link>
                     </Button>
                     <Button variant="ghost" size="icon" asChild>
-                      <Link to="/pedidos/$id/editar" params={{ id: order.id }}>
+                      <Link to="/pedidos/$id/editar" params={{ id: order.id! }}>
                         <Pencil className="h-4 w-4" />
                       </Link>
                     </Button>
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => setDeleteId(order.id)}
+                      onClick={() => setDeleteId(order.id!)}
                     >
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>

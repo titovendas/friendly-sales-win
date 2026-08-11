@@ -13,6 +13,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedClientesRouteImport } from './routes/_authenticated/clientes'
+import { Route as AuthenticatedPedidosRouteImport } from './routes/_authenticated/pedidos'
 import { Route as AuthenticatedProdutosRouteImport } from './routes/_authenticated/produtos'
 import { Route as AuthenticatedVendedoresRouteImport } from './routes/_authenticated/vendedores'
 
@@ -35,6 +36,11 @@ const AuthenticatedClientesRoute = AuthenticatedClientesRouteImport.update({
   path: '/clientes',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedPedidosRoute = AuthenticatedPedidosRouteImport.update({
+  id: '/pedidos',
+  path: '/pedidos',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedProdutosRoute = AuthenticatedProdutosRouteImport.update({
   id: '/produtos',
   path: '/produtos',
@@ -50,12 +56,14 @@ export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/auth': typeof AuthRoute
   '/clientes': typeof AuthenticatedClientesRoute
+  '/pedidos': typeof AuthenticatedPedidosRoute
   '/produtos': typeof AuthenticatedProdutosRoute
   '/vendedores': typeof AuthenticatedVendedoresRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/clientes': typeof AuthenticatedClientesRoute
+  '/pedidos': typeof AuthenticatedPedidosRoute
   '/produtos': typeof AuthenticatedProdutosRoute
   '/vendedores': typeof AuthenticatedVendedoresRoute
   '/': typeof AuthenticatedIndexRoute
@@ -65,20 +73,23 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/clientes': typeof AuthenticatedClientesRoute
+  '/_authenticated/pedidos': typeof AuthenticatedPedidosRoute
   '/_authenticated/produtos': typeof AuthenticatedProdutosRoute
   '/_authenticated/vendedores': typeof AuthenticatedVendedoresRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/clientes' | '/produtos' | '/vendedores'
+  fullPaths:
+    '/' | '/auth' | '/clientes' | '/pedidos' | '/produtos' | '/vendedores'
   fileRoutesByTo: FileRoutesByTo
-  to: '/auth' | '/clientes' | '/produtos' | '/vendedores' | '/'
+  to: '/auth' | '/clientes' | '/pedidos' | '/produtos' | '/vendedores' | '/'
   id:
     | '__root__'
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/clientes'
+    | '/_authenticated/pedidos'
     | '/_authenticated/produtos'
     | '/_authenticated/vendedores'
     | '/_authenticated/'
@@ -119,6 +130,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClientesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/pedidos': {
+      id: '/_authenticated/pedidos'
+      path: '/pedidos'
+      fullPath: '/pedidos'
+      preLoaderRoute: typeof AuthenticatedPedidosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/produtos': {
       id: '/_authenticated/produtos'
       path: '/produtos'
@@ -138,6 +156,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedClientesRoute: typeof AuthenticatedClientesRoute
+  AuthenticatedPedidosRoute: typeof AuthenticatedPedidosRoute
   AuthenticatedProdutosRoute: typeof AuthenticatedProdutosRoute
   AuthenticatedVendedoresRoute: typeof AuthenticatedVendedoresRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
@@ -145,6 +164,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedClientesRoute: AuthenticatedClientesRoute,
+  AuthenticatedPedidosRoute: AuthenticatedPedidosRoute,
   AuthenticatedProdutosRoute: AuthenticatedProdutosRoute,
   AuthenticatedVendedoresRoute: AuthenticatedVendedoresRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
