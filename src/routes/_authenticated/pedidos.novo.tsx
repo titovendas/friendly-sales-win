@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -26,22 +26,6 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/pedidos/novo")({
   component: NewOrderPage,
-  loader: async ({ context }) => {
-    await Promise.all([
-      context.queryClient.ensureQueryData({
-        queryKey: ["customers"],
-        queryFn: () => listCustomers(),
-      }),
-      context.queryClient.ensureQueryData({
-        queryKey: ["products"],
-        queryFn: () => listProducts(),
-      }),
-      context.queryClient.ensureQueryData({
-        queryKey: ["sellers"],
-        queryFn: () => listSellers(),
-      }),
-    ]);
-  },
   head: () => ({
     meta: [
       { title: "Novo Pedido | Força de Vendas" },
