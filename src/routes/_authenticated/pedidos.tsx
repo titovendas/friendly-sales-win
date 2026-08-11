@@ -108,7 +108,16 @@ function OrdersPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.length === 0 ? (
+            {isLoading ? (
+              <TableRow>
+                <TableCell
+                  colSpan={7}
+                  className="h-32 text-center text-muted-foreground"
+                >
+                  Carregando...
+                </TableCell>
+              </TableRow>
+            ) : filtered.length === 0 ? (
               <TableRow>
                 <TableCell
                   colSpan={7}
@@ -118,7 +127,7 @@ function OrdersPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              filtered.map((order) => (
+              filtered.map((order: any) => (
                 <TableRow key={order.id!}>
                   <TableCell className="font-medium">
                     #{order.id!.slice(0, 8)}
