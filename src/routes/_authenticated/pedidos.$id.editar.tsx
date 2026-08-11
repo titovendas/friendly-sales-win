@@ -88,7 +88,15 @@ function EditOrderPage() {
     );
   }, [orderData]);
 
-  const activeProducts = products.filter((p) => p.active);
+  if (orderLoading || !orderData) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center text-muted-foreground">
+        Carregando...
+      </div>
+    );
+  }
+
+  const activeProducts = products.filter((p: any) => p.active);
 
   const total = useMemo(
     () => items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0),
@@ -105,7 +113,7 @@ function EditOrderPage() {
       if (!current) return prev;
       if (updates.product_id !== undefined) {
         current.product_id = updates.product_id;
-        const product = products.find((p) => p.id === updates.product_id);
+        const product = products.find((p: any) => p.id === updates.product_id);
         if (product) {
           current.unit_price = product.price;
         }
