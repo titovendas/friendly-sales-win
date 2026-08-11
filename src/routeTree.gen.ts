@@ -16,6 +16,7 @@ import { Route as AuthenticatedClientesRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedPedidosRouteImport } from './routes/_authenticated/pedidos'
 import { Route as AuthenticatedProdutosRouteImport } from './routes/_authenticated/produtos'
 import { Route as AuthenticatedVendedoresRouteImport } from './routes/_authenticated/vendedores'
+import { Route as AuthenticatedPedidosNovoRouteImport } from './routes/_authenticated/pedidos.novo'
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
@@ -51,39 +52,61 @@ const AuthenticatedVendedoresRoute = AuthenticatedVendedoresRouteImport.update({
   path: '/vendedores',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedPedidosNovoRoute =
+  AuthenticatedPedidosNovoRouteImport.update({
+    id: '/novo',
+    path: '/novo',
+    getParentRoute: () => AuthenticatedPedidosRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/auth': typeof AuthRoute
   '/clientes': typeof AuthenticatedClientesRoute
-  '/pedidos': typeof AuthenticatedPedidosRoute
+  '/pedidos': typeof AuthenticatedPedidosRouteWithChildren
   '/produtos': typeof AuthenticatedProdutosRoute
   '/vendedores': typeof AuthenticatedVendedoresRoute
+  '/pedidos/novo': typeof AuthenticatedPedidosNovoRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/clientes': typeof AuthenticatedClientesRoute
-  '/pedidos': typeof AuthenticatedPedidosRoute
+  '/pedidos': typeof AuthenticatedPedidosRouteWithChildren
   '/produtos': typeof AuthenticatedProdutosRoute
   '/vendedores': typeof AuthenticatedVendedoresRoute
   '/': typeof AuthenticatedIndexRoute
+  '/pedidos/novo': typeof AuthenticatedPedidosNovoRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/clientes': typeof AuthenticatedClientesRoute
-  '/_authenticated/pedidos': typeof AuthenticatedPedidosRoute
+  '/_authenticated/pedidos': typeof AuthenticatedPedidosRouteWithChildren
   '/_authenticated/produtos': typeof AuthenticatedProdutosRoute
   '/_authenticated/vendedores': typeof AuthenticatedVendedoresRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/_authenticated/pedidos/novo': typeof AuthenticatedPedidosNovoRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/auth' | '/clientes' | '/pedidos' | '/produtos' | '/vendedores'
+    | '/'
+    | '/auth'
+    | '/clientes'
+    | '/pedidos'
+    | '/produtos'
+    | '/vendedores'
+    | '/pedidos/novo'
   fileRoutesByTo: FileRoutesByTo
-  to: '/auth' | '/clientes' | '/pedidos' | '/produtos' | '/vendedores' | '/'
+  to:
+    | '/auth'
+    | '/clientes'
+    | '/pedidos'
+    | '/produtos'
+    | '/vendedores'
+    | '/'
+    | '/pedidos/novo'
   id:
     | '__root__'
     | '/_authenticated'
@@ -93,6 +116,7 @@ export interface FileRouteTypes {
     | '/_authenticated/produtos'
     | '/_authenticated/vendedores'
     | '/_authenticated/'
+    | '/_authenticated/pedidos/novo'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -151,12 +175,30 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedVendedoresRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/pedidos/novo': {
+      id: '/_authenticated/pedidos/novo'
+      path: '/novo'
+      fullPath: '/pedidos/novo'
+      preLoaderRoute: typeof AuthenticatedPedidosNovoRouteImport
+      parentRoute: typeof AuthenticatedPedidosRoute
+    }
   }
 }
 
+interface AuthenticatedPedidosRouteChildren {
+  AuthenticatedPedidosNovoRoute: typeof AuthenticatedPedidosNovoRoute
+}
+
+const AuthenticatedPedidosRouteChildren: AuthenticatedPedidosRouteChildren = {
+  AuthenticatedPedidosNovoRoute: AuthenticatedPedidosNovoRoute,
+}
+
+const AuthenticatedPedidosRouteWithChildren =
+  AuthenticatedPedidosRoute._addFileChildren(AuthenticatedPedidosRouteChildren)
+
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedClientesRoute: typeof AuthenticatedClientesRoute
-  AuthenticatedPedidosRoute: typeof AuthenticatedPedidosRoute
+  AuthenticatedPedidosRoute: typeof AuthenticatedPedidosRouteWithChildren
   AuthenticatedProdutosRoute: typeof AuthenticatedProdutosRoute
   AuthenticatedVendedoresRoute: typeof AuthenticatedVendedoresRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
@@ -164,7 +206,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedClientesRoute: AuthenticatedClientesRoute,
-  AuthenticatedPedidosRoute: AuthenticatedPedidosRoute,
+  AuthenticatedPedidosRoute: AuthenticatedPedidosRouteWithChildren,
   AuthenticatedProdutosRoute: AuthenticatedProdutosRoute,
   AuthenticatedVendedoresRoute: AuthenticatedVendedoresRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,

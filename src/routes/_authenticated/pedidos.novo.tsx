@@ -87,15 +87,25 @@ function NewOrderPage() {
     [items]
   );
 
-  const updateItem = (index: number, updates: Partial<OrderItem>) => {
+  const updateItem = (
+    index: number,
+    updates: { product_id?: string; quantity?: number; unit_price?: number }
+  ) => {
     setItems((prev) => {
       const next = [...prev];
-      next[index] = { ...next[index], ...updates };
-      if ("product_id" in updates) {
+      const current = next[index];
+      if (updates.product_id !== undefined) {
+        current.product_id = updates.product_id;
         const product = products.find((p) => p.id === updates.product_id);
         if (product) {
-          next[index].unit_price = product.price;
+          current.unit_price = product.price;
         }
+      }
+      if (updates.quantity !== undefined) {
+        current.quantity = updates.quantity;
+      }
+      if (updates.unit_price !== undefined) {
+        current.unit_price = updates.unit_price;
       }
       return next;
     });
