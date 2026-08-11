@@ -68,13 +68,17 @@ function EditOrderPage() {
     queryFn: () => listSellers(),
   });
 
-  const [customerId, setCustomerId] = useState(orderData.order.customer_id || "");
-  const [sellerId, setSellerId] = useState(orderData.order.seller_id || "");
-  const [status, setStatus] = useState(orderData.order.status || "pending");
+  const [customerId, setCustomerId] = useState("");
+  const [sellerId, setSellerId] = useState("");
+  const [status, setStatus] = useState("pending");
   const [items, setItems] = useState<OrderItem[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    if (!orderData) return;
+    setCustomerId(orderData.order.customer_id || "");
+    setSellerId(orderData.order.seller_id || "");
+    setStatus(orderData.order.status || "pending");
     setItems(
       orderData.items.map((item: any) => ({
         product_id: item.product_id,
