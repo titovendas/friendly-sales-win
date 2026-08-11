@@ -36,10 +36,18 @@ export const Route = createFileRoute("/_authenticated/")({
 });
 
 function DashboardPage() {
-  const { data } = useSuspenseQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ["dashboard-stats"],
     queryFn: () => getDashboardStats(),
   });
+
+  if (isLoading || !data) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center text-muted-foreground">
+        Carregando...
+      </div>
+    );
+  }
 
   const stats = [
     {
