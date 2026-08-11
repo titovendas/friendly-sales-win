@@ -152,7 +152,7 @@ function NewOrderPage() {
                 <SelectValue placeholder="Selecione" />
               </SelectTrigger>
               <SelectContent>
-                {customers.map((c) => (
+                {customers.map((c: any) => (
                   <SelectItem key={c.id} value={c.id!}>
                     {c.name}
                   </SelectItem>
@@ -167,7 +167,7 @@ function NewOrderPage() {
                 <SelectValue placeholder="Selecione" />
               </SelectTrigger>
               <SelectContent>
-                {sellers.map((s) => (
+                {sellers.map((s: any) => (
                   <SelectItem key={s.id} value={s.id!}>
                     {s.name}
                   </SelectItem>
