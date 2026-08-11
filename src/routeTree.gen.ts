@@ -16,7 +16,9 @@ import { Route as AuthenticatedClientesRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedPedidosRouteImport } from './routes/_authenticated/pedidos'
 import { Route as AuthenticatedProdutosRouteImport } from './routes/_authenticated/produtos'
 import { Route as AuthenticatedVendedoresRouteImport } from './routes/_authenticated/vendedores'
+import { Route as AuthenticatedPedidosIdRouteImport } from './routes/_authenticated/pedidos.$id'
 import { Route as AuthenticatedPedidosNovoRouteImport } from './routes/_authenticated/pedidos.novo'
+import { Route as AuthenticatedPedidosIdEditarRouteImport } from './routes/_authenticated/pedidos.$id.editar'
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
@@ -52,11 +54,22 @@ const AuthenticatedVendedoresRoute = AuthenticatedVendedoresRouteImport.update({
   path: '/vendedores',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedPedidosIdRoute = AuthenticatedPedidosIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AuthenticatedPedidosRoute,
+} as any)
 const AuthenticatedPedidosNovoRoute =
   AuthenticatedPedidosNovoRouteImport.update({
     id: '/novo',
     path: '/novo',
     getParentRoute: () => AuthenticatedPedidosRoute,
+  } as any)
+const AuthenticatedPedidosIdEditarRoute =
+  AuthenticatedPedidosIdEditarRouteImport.update({
+    id: '/editar',
+    path: '/editar',
+    getParentRoute: () => AuthenticatedPedidosIdRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -66,7 +79,9 @@ export interface FileRoutesByFullPath {
   '/pedidos': typeof AuthenticatedPedidosRouteWithChildren
   '/produtos': typeof AuthenticatedProdutosRoute
   '/vendedores': typeof AuthenticatedVendedoresRoute
+  '/pedidos/$id': typeof AuthenticatedPedidosIdRouteWithChildren
   '/pedidos/novo': typeof AuthenticatedPedidosNovoRoute
+  '/pedidos/$id/editar': typeof AuthenticatedPedidosIdEditarRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
@@ -75,7 +90,9 @@ export interface FileRoutesByTo {
   '/produtos': typeof AuthenticatedProdutosRoute
   '/vendedores': typeof AuthenticatedVendedoresRoute
   '/': typeof AuthenticatedIndexRoute
+  '/pedidos/$id': typeof AuthenticatedPedidosIdRouteWithChildren
   '/pedidos/novo': typeof AuthenticatedPedidosNovoRoute
+  '/pedidos/$id/editar': typeof AuthenticatedPedidosIdEditarRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -86,7 +103,9 @@ export interface FileRoutesById {
   '/_authenticated/produtos': typeof AuthenticatedProdutosRoute
   '/_authenticated/vendedores': typeof AuthenticatedVendedoresRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/_authenticated/pedidos/$id': typeof AuthenticatedPedidosIdRouteWithChildren
   '/_authenticated/pedidos/novo': typeof AuthenticatedPedidosNovoRoute
+  '/_authenticated/pedidos/$id/editar': typeof AuthenticatedPedidosIdEditarRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -97,7 +116,9 @@ export interface FileRouteTypes {
     | '/pedidos'
     | '/produtos'
     | '/vendedores'
+    | '/pedidos/$id'
     | '/pedidos/novo'
+    | '/pedidos/$id/editar'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
@@ -106,7 +127,9 @@ export interface FileRouteTypes {
     | '/produtos'
     | '/vendedores'
     | '/'
+    | '/pedidos/$id'
     | '/pedidos/novo'
+    | '/pedidos/$id/editar'
   id:
     | '__root__'
     | '/_authenticated'
@@ -116,7 +139,9 @@ export interface FileRouteTypes {
     | '/_authenticated/produtos'
     | '/_authenticated/vendedores'
     | '/_authenticated/'
+    | '/_authenticated/pedidos/$id'
     | '/_authenticated/pedidos/novo'
+    | '/_authenticated/pedidos/$id/editar'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -175,6 +200,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedVendedoresRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/pedidos/$id': {
+      id: '/_authenticated/pedidos/$id'
+      path: '/$id'
+      fullPath: '/pedidos/$id'
+      preLoaderRoute: typeof AuthenticatedPedidosIdRouteImport
+      parentRoute: typeof AuthenticatedPedidosRoute
+    }
     '/_authenticated/pedidos/novo': {
       id: '/_authenticated/pedidos/novo'
       path: '/novo'
@@ -182,14 +214,37 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPedidosNovoRouteImport
       parentRoute: typeof AuthenticatedPedidosRoute
     }
+    '/_authenticated/pedidos/$id/editar': {
+      id: '/_authenticated/pedidos/$id/editar'
+      path: '/editar'
+      fullPath: '/pedidos/$id/editar'
+      preLoaderRoute: typeof AuthenticatedPedidosIdEditarRouteImport
+      parentRoute: typeof AuthenticatedPedidosIdRoute
+    }
   }
 }
 
+interface AuthenticatedPedidosIdRouteChildren {
+  AuthenticatedPedidosIdEditarRoute: typeof AuthenticatedPedidosIdEditarRoute
+}
+
+const AuthenticatedPedidosIdRouteChildren: AuthenticatedPedidosIdRouteChildren =
+  {
+    AuthenticatedPedidosIdEditarRoute: AuthenticatedPedidosIdEditarRoute,
+  }
+
+const AuthenticatedPedidosIdRouteWithChildren =
+  AuthenticatedPedidosIdRoute._addFileChildren(
+    AuthenticatedPedidosIdRouteChildren,
+  )
+
 interface AuthenticatedPedidosRouteChildren {
+  AuthenticatedPedidosIdRoute: typeof AuthenticatedPedidosIdRouteWithChildren
   AuthenticatedPedidosNovoRoute: typeof AuthenticatedPedidosNovoRoute
 }
 
 const AuthenticatedPedidosRouteChildren: AuthenticatedPedidosRouteChildren = {
+  AuthenticatedPedidosIdRoute: AuthenticatedPedidosIdRouteWithChildren,
   AuthenticatedPedidosNovoRoute: AuthenticatedPedidosNovoRoute,
 }
 
