@@ -32,10 +32,18 @@ export const Route = createFileRoute("/_authenticated/pedidos/$id")({
 
 function OrderDetailPage() {
   const { id } = Route.useParams();
-  const { data } = useSuspenseQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ["order", id],
     queryFn: () => getOrder({ data: { id } }),
   });
+
+  if (isLoading || !data) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center text-muted-foreground">
+        Carregando...
+      </div>
+    );
+  }
 
   const { order, items } = data;
 
