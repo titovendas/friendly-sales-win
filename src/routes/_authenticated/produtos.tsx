@@ -155,7 +155,16 @@ function ProductsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.length === 0 ? (
+            {isLoading ? (
+              <TableRow>
+                <TableCell
+                  colSpan={6}
+                  className="h-32 text-center text-muted-foreground"
+                >
+                  Carregando...
+                </TableCell>
+              </TableRow>
+            ) : filtered.length === 0 ? (
               <TableRow>
                 <TableCell
                   colSpan={6}
@@ -165,7 +174,7 @@ function ProductsPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              filtered.map((product) => (
+              filtered.map((product: any) => (
                 <TableRow key={product.id}>
                   <TableCell className="font-medium">{product.name}</TableCell>
                   <TableCell>{product.sku || "—"}</TableCell>
