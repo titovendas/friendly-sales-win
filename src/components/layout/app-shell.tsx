@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import uzzyLogo from "@/assets/uzzy-logo.png";
 
 const navItems = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -66,13 +67,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   };
 
   const SidebarContent = (
-    <div className="flex h-full flex-col">
-      <div className="flex h-16 items-center gap-2 border-b border-border px-4">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-          <ShoppingCart className="h-4 w-4" />
-        </div>
-        <span className="font-semibold tracking-tight">Força de Vendas</span>
+    <div className="flex h-full flex-col bg-sidebar">
+      <div className="flex h-16 items-center gap-2 border-b border-sidebar-border px-4">
+        <img src={uzzyLogo} alt="UZZY Ferramentas" className="h-8 w-auto" />
+        <span className="sr-only">UZZY Ferramentas</span>
       </div>
+
 
       <nav className="flex-1 space-y-1 p-3">
         {navItems.map((item) => (
@@ -108,12 +108,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Mobile header + sheet */}
       <div className="fixed left-0 right-0 top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-card px-4 lg:hidden">
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <ShoppingCart className="h-4 w-4" />
-          </div>
-          <span className="font-semibold tracking-tight">Força de Vendas</span>
-        </div>
+        <img src={uzzyLogo} alt="UZZY Ferramentas" className="h-8 w-auto" />
+
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>
             <Button variant="ghost" size="icon">
