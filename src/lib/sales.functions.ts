@@ -67,7 +67,7 @@ const orderItemSchema = z.object({
 const orderSchema = z.object({
   id: optionalId,
   customer_id: z.string().uuid(),
-  seller_id: z.string().uuid(),
+  seller_id: optionalId,
   status: orderStatusSchema.default("pending"),
   price_table: priceTableSchema.default("varejo_10"),
   items: z.array(orderItemSchema).min(1),
@@ -469,7 +469,7 @@ export const upsertOrder = createServerFn({ method: "POST" })
     const orderPayload = {
       user_id: userId,
       customer_id: data.customer_id,
-      seller_id: data.seller_id,
+      seller_id: data.seller_id ?? null,
       status: data.status,
       price_table: data.price_table,
       subtotal,
