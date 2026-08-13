@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Package, User, Truck } from "lucide-react";
+import { ArrowLeft, Package, User, Truck, FileDown, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +19,9 @@ import {
   statusLabel,
   statusVariant,
 } from "@/lib/sales-formatters";
+import { priceTableLabel } from "@/lib/price-tables";
+import { generateOrderPdf } from "@/lib/order-pdf";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/pedidos/$id")({
   component: OrderDetailPage,
@@ -65,14 +68,28 @@ function OrderDetailPage() {
             </p>
           </div>
         </div>
-        <Button asChild>
-          <Link to="/pedidos/$id/editar" params={{ id }}>
-            Editar pedido
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={async () => {
+              try {
+                await generateOrderPdf(order, items);
+              } catch (err: any) {
+                toast.error(err?.message || "Erro ao gerar o PDF");
+              }
+            }}
+          >
+            <FileDown className="mr-2 h-4 w-4" /> Baixar PDF
+          </Button>
+          <Button asChild>
+            <Link to="/pedidos/$id/editar" params={{ id }}>
+              Editar pedido
+            </Link>
+          </Button>
+        </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center gap-2 pb-2">
             <User className="h-4 w-4 text-muted-foreground" />
@@ -104,6 +121,17 @@ function OrderDetailPage() {
             <Badge variant={statusVariant(order.status!)} className="text-base">
               {statusLabel(order.status!)}
             </Badge>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center gap-2 pb-2">
+            <Tag className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Tabela de preço</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-lg font-semibold">
+              {priceTableLabel((order as any).price_table)}
+            </p>
           </CardContent>
         </Card>
       </div>
