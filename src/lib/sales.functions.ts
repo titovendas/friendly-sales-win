@@ -13,8 +13,18 @@ const orderStatusSchema = z.enum([
 
 export const priceTableSchema = z.enum(["atacado", "varejo_10", "varejo_75"]);
 
+// Optional UUID that also accepts an empty string (sent by forms when
+// creating a new record) and normalizes it to undefined.
+const optionalId = z
+  .string()
+  .optional()
+  .transform((v) => (v ? v : undefined))
+  .refine((v) => v === undefined || z.string().uuid().safeParse(v).success, {
+    message: "Invalid uuid",
+  });
+
 const customerSchema = z.object({
-  id: z.string().uuid().optional(),
+  id: optionalId,
   name: z.string().min(1),
   email: z.string().email().optional().or(z.literal("")),
   phone: z.string().optional().or(z.literal("")),
@@ -25,7 +35,7 @@ const customerSchema = z.object({
 });
 
 const productSchema = z.object({
-  id: z.string().uuid().optional(),
+  id: optionalId,
   name: z.string().min(1),
   description: z.string().optional().or(z.literal("")),
   sku: z.string().optional().or(z.literal("")),
@@ -36,7 +46,7 @@ const productSchema = z.object({
 });
 
 const sellerSchema = z.object({
-  id: z.string().uuid().optional(),
+  id: optionalId,
   name: z.string().min(1),
   email: z.string().email().optional().or(z.literal("")),
   phone: z.string().optional().or(z.literal("")),
@@ -55,7 +65,7 @@ const orderItemSchema = z.object({
 });
 
 const orderSchema = z.object({
-  id: z.string().uuid().optional(),
+  id: optionalId,
   customer_id: z.string().uuid(),
   seller_id: z.string().uuid(),
   status: orderStatusSchema.default("pending"),
