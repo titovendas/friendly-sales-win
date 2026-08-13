@@ -94,10 +94,6 @@ export function OrderForm({
 
   const onCustomerChange = (value: string) => {
     setCustomerId(value);
-    const customer = customers.find((c) => c.id === value);
-    if (customer?.price_table) {
-      changePriceTable(customer.price_table as PriceTable);
-    }
   };
 
   const changePriceTable = (table: PriceTable) => {
