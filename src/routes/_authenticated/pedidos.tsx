@@ -100,7 +100,6 @@ function OrdersPage() {
             <TableRow>
               <TableHead>Pedido</TableHead>
               <TableHead>Cliente</TableHead>
-              <TableHead>Vendedor</TableHead>
               <TableHead>Data</TableHead>
               <TableHead className="text-right">Total</TableHead>
               <TableHead>Status</TableHead>
@@ -111,7 +110,7 @@ function OrdersPage() {
             {isLoading ? (
               <TableRow>
                 <TableCell
-                  colSpan={7}
+                  colSpan={6}
                   className="h-32 text-center text-muted-foreground"
                 >
                   Carregando...
@@ -120,7 +119,7 @@ function OrdersPage() {
             ) : filtered.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={7}
+                  colSpan={6}
                   className="h-32 text-center text-muted-foreground"
                 >
                   Nenhum pedido encontrado.
@@ -133,7 +132,6 @@ function OrdersPage() {
                     #{order.id!.slice(0, 8)}
                   </TableCell>
                   <TableCell>{order.customer_name || "—"}</TableCell>
-                  <TableCell>{order.seller_name || "—"}</TableCell>
                   <TableCell>{formatDate(order.created_at)}</TableCell>
                   <TableCell className="text-right">
                     {formatCurrency(order.total)}
