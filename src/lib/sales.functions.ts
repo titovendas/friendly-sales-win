@@ -45,9 +45,14 @@ const sellerSchema = z.object({
 });
 
 const orderItemSchema = z.object({
-  product_id: z.string().uuid(),
+  catalog_product_id: z.string().uuid(),
+  code: z.string(),
+  description: z.string(),
+  image_url: z.string().nullable().optional(),
   quantity: z.coerce.number().int().min(1),
   unit_price: z.coerce.number().min(0),
+  ipi_percent: z.coerce.number().min(0).default(0),
+  st_percent: z.coerce.number().min(0).default(0),
 });
 
 const orderSchema = z.object({
@@ -55,6 +60,7 @@ const orderSchema = z.object({
   customer_id: z.string().uuid(),
   seller_id: z.string().uuid(),
   status: orderStatusSchema.default("pending"),
+  price_table: priceTableSchema.default("varejo_10"),
   items: z.array(orderItemSchema).min(1),
 });
 
