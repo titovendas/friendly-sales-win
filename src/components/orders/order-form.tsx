@@ -38,6 +38,7 @@ export type FormItem = {
   unit_price: number;
   ipi_percent: number;
   st_percent: number;
+  prices: { atacado: number; varejo_10: number; varejo_75: number };
 };
 
 type Props = {
@@ -101,7 +102,12 @@ export function OrderForm({
 
   const changePriceTable = (table: PriceTable) => {
     setPriceTable(table);
-    setItems((prev) => prev.map((i) => ({ ...i, _repriceTo: table }) as any));
+    setItems((prev) =>
+      prev.map((i) => ({
+        ...i,
+        unit_price: i.prices?.[table] ?? i.unit_price,
+      }))
+    );
   };
 
   const addProduct = (product: any) => {
@@ -125,6 +131,11 @@ export function OrderForm({
           unit_price: catalogPrice(product, priceTable),
           ipi_percent: Number(product.ipi_percent ?? 0),
           st_percent: Number(product.st_percent ?? 0),
+          prices: {
+            atacado: Number(product.price_atacado ?? 0),
+            varejo_10: Number(product.price_varejo_10 ?? 0),
+            varejo_75: Number(product.price_varejo_75 ?? 0),
+          },
         },
       ];
     });
