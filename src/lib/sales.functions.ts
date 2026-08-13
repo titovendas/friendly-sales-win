@@ -156,6 +156,71 @@ export const upsertCustomer = createServerFn({ method: "POST" })
     return result;
   });
 
+async function fetchFromBrasilApi(digits: string) {
+  const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${digits}`, {
+    headers: {
+      "User-Agent": "ForcaDeVendas/1.0 (+https://friendly-sales-win.lovable.app)",
+      Accept: "application/json",
+    },
+  });
+  if (res.status === 404) {
+    throw new Error("NOT_FOUND");
+  }
+  if (!res.ok) {
+    throw new Error(`BRASILAPI_HTTP_${res.status}`);
+  }
+  const info: any = await res.json();
+  const street = [
+    info.descricao_tipo_de_logradouro,
+    info.logradouro,
+    info.numero,
+    info.complemento,
+    info.bairro ? `- ${info.bairro}` : "",
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+  const phone = info.ddd_telefone_1 || info.telefone1 || "";
+  return {
+    document: digits,
+    name: info.nome_fantasia || info.razao_social || "",
+    email: info.email || "",
+    phone,
+    address: street,
+    city: info.municipio || "",
+    state: info.uf || "",
+  };
+}
+
+async function fetchFromReceitaWs(digits: string) {
+  const res = await fetch(`https://www.receitaws.com.br/v1/cnpj/${digits}`, {
+    headers: {
+      "User-Agent": "ForcaDeVendas/1.0 (+https://friendly-sales-win.lovable.app)",
+      Accept: "application/json",
+    },
+  });
+  if (!res.ok) {
+    throw new Error(`RECEITAWS_HTTP_${res.status}`);
+  }
+  const info: any = await res.json();
+  if (info.status === "ERROR") {
+    throw new Error("NOT_FOUND");
+  }
+  const street = [info.logradouro, info.numero, info.complemento, info.bairro]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+  return {
+    document: digits,
+    name: info.fantasia || info.nome || "",
+    email: info.email || "",
+    phone: info.telefone || "",
+    address: street,
+    city: info.municipio || "",
+    state: info.uf || "",
+  };
+}
+
 export const lookupCnpj = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) =>
@@ -166,39 +231,24 @@ export const lookupCnpj = createServerFn({ method: "GET" })
     if (digits.length !== 14) {
       throw new Error("CNPJ inválido. Digite os 14 números.");
     }
-    const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${digits}`);
-    if (!res.ok) {
-      if (res.status === 404) {
-        throw new Error("CNPJ não encontrado.");
+
+    let lastError: unknown = null;
+    for (const fetcher of [fetchFromBrasilApi, fetchFromReceitaWs]) {
+      try {
+        return await fetcher(digits);
+      } catch (err: any) {
+        lastError = err;
+        if (err?.message === "NOT_FOUND") {
+          throw new Error("CNPJ não encontrado.");
+        }
+        // try next provider
       }
-      throw new Error("Não foi possível consultar o CNPJ agora.");
     }
-    const info: any = await res.json();
 
-    const street = [
-      info.descricao_tipo_de_logradouro,
-      info.logradouro,
-      info.numero,
-      info.complemento,
-      info.bairro ? `- ${info.bairro}` : "",
-    ]
-      .filter(Boolean)
-      .join(" ")
-      .trim();
-
-    const phone = info.ddd_telefone_1
-      ? info.ddd_telefone_1
-      : info.telefone1 || "";
-
-    return {
-      document: digits,
-      name: info.nome_fantasia || info.razao_social || "",
-      email: info.email || "",
-      phone,
-      address: street,
-      city: info.municipio || "",
-      state: info.uf || "",
-    };
+    console.error("[lookupCnpj] all providers failed", lastError);
+    throw new Error(
+      "Não foi possível consultar o CNPJ agora. Você pode preencher os dados manualmente."
+    );
   });
 
 export const deleteCustomer = createServerFn({ method: "POST" })
