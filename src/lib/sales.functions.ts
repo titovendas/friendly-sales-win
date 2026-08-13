@@ -134,6 +134,7 @@ export const upsertCustomer = createServerFn({ method: "POST" })
       address: data.address || null,
       city: data.city || null,
       state: data.state || null,
+      price_table: data.price_table,
     };
 
     if (data.id) {
