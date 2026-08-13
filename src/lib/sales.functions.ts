@@ -22,7 +22,6 @@ const customerSchema = z.object({
   address: z.string().optional().or(z.literal("")),
   city: z.string().optional().or(z.literal("")),
   state: z.string().optional().or(z.literal("")),
-  price_table: priceTableSchema.default("varejo_10"),
 });
 
 const productSchema = z.object({
@@ -134,7 +133,6 @@ export const upsertCustomer = createServerFn({ method: "POST" })
       address: data.address || null,
       city: data.city || null,
       state: data.state || null,
-      price_table: data.price_table,
     };
 
     if (data.id) {
@@ -156,6 +154,51 @@ export const upsertCustomer = createServerFn({ method: "POST" })
       .single();
     if (error) throw new Error(error.message);
     return result;
+  });
+
+export const lookupCnpj = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) =>
+    z.object({ cnpj: z.string().min(1) }).parse(data)
+  )
+  .handler(async ({ data }) => {
+    const digits = data.cnpj.replace(/\D/g, "");
+    if (digits.length !== 14) {
+      throw new Error("CNPJ inválido. Digite os 14 números.");
+    }
+    const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${digits}`);
+    if (!res.ok) {
+      if (res.status === 404) {
+        throw new Error("CNPJ não encontrado.");
+      }
+      throw new Error("Não foi possível consultar o CNPJ agora.");
+    }
+    const info: any = await res.json();
+
+    const street = [
+      info.descricao_tipo_de_logradouro,
+      info.logradouro,
+      info.numero,
+      info.complemento,
+      info.bairro ? `- ${info.bairro}` : "",
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+
+    const phone = info.ddd_telefone_1
+      ? info.ddd_telefone_1
+      : info.telefone1 || "";
+
+    return {
+      document: digits,
+      name: info.nome_fantasia || info.razao_social || "",
+      email: info.email || "",
+      phone,
+      address: street,
+      city: info.municipio || "",
+      state: info.uf || "",
+    };
   });
 
 export const deleteCustomer = createServerFn({ method: "POST" })
