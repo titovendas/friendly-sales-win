@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   listCustomers,
-  listSellers,
   getOrder,
   upsertOrder,
 } from "@/lib/sales.functions";
@@ -39,13 +38,7 @@ function EditOrderPage() {
     queryKey: ["customers"],
     queryFn: () => listCustomers(),
   });
-  const { data: sellers = [] } = useQuery({
-    queryKey: ["sellers"],
-    queryFn: () => listSellers(),
-  });
-
   const [customerId, setCustomerId] = useState("");
-  const [sellerId, setSellerId] = useState("");
   const [status, setStatus] = useState("pending");
   const [priceTable, setPriceTable] = useState<PriceTable>("varejo_10");
   const [items, setItems] = useState<FormItem[]>([]);
@@ -55,7 +48,6 @@ function EditOrderPage() {
     if (!orderData) return;
     const order: any = orderData.order;
     setCustomerId(order.customer_id || "");
-    setSellerId(order.seller_id || "");
     setStatus(order.status || "pending");
     setPriceTable((order.price_table as PriceTable) || "varejo_10");
     setItems(
@@ -79,8 +71,8 @@ function EditOrderPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!customerId || !sellerId) {
-      toast.error("Selecione o cliente e o vendedor");
+    if (!customerId) {
+      toast.error("Selecione o cliente");
       return;
     }
     if (items.length === 0) {
@@ -93,7 +85,6 @@ function EditOrderPage() {
         data: {
           id,
           customer_id: customerId,
-          seller_id: sellerId,
           status: status as any,
           price_table: priceTable,
           items: items.map(({ prices, ...item }) => item),
@@ -129,11 +120,8 @@ function EditOrderPage() {
       <form onSubmit={handleSubmit} className="space-y-6">
         <OrderForm
           customers={customers}
-          sellers={sellers}
           customerId={customerId}
           setCustomerId={setCustomerId}
-          sellerId={sellerId}
-          setSellerId={setSellerId}
           status={status}
           setStatus={setStatus}
           priceTable={priceTable}
