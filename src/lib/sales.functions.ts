@@ -11,6 +11,8 @@ const orderStatusSchema = z.enum([
   "cancelled",
 ]);
 
+export const priceTableSchema = z.enum(["atacado", "varejo_10", "varejo_75"]);
+
 const customerSchema = z.object({
   id: z.string().uuid().optional(),
   name: z.string().min(1),
@@ -20,6 +22,7 @@ const customerSchema = z.object({
   address: z.string().optional().or(z.literal("")),
   city: z.string().optional().or(z.literal("")),
   state: z.string().optional().or(z.literal("")),
+  price_table: priceTableSchema.default("varejo_10"),
 });
 
 const productSchema = z.object({
@@ -42,9 +45,14 @@ const sellerSchema = z.object({
 });
 
 const orderItemSchema = z.object({
-  product_id: z.string().uuid(),
+  catalog_product_id: z.string().uuid(),
+  code: z.string(),
+  description: z.string(),
+  image_url: z.string().nullable().optional(),
   quantity: z.coerce.number().int().min(1),
   unit_price: z.coerce.number().min(0),
+  ipi_percent: z.coerce.number().min(0).default(0),
+  st_percent: z.coerce.number().min(0).default(0),
 });
 
 const orderSchema = z.object({
@@ -52,6 +60,7 @@ const orderSchema = z.object({
   customer_id: z.string().uuid(),
   seller_id: z.string().uuid(),
   status: orderStatusSchema.default("pending"),
+  price_table: priceTableSchema.default("varejo_10"),
   items: z.array(orderItemSchema).min(1),
 });
 
@@ -125,6 +134,7 @@ export const upsertCustomer = createServerFn({ method: "POST" })
       address: data.address || null,
       city: data.city || null,
       state: data.state || null,
+      price_table: data.price_table,
     };
 
     if (data.id) {
@@ -309,8 +319,10 @@ export const getOrder = createServerFn({ method: "GET" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     const { data: order, error } = await supabase
-      .from("order_summary")
-      .select("*")
+      .from("orders")
+      .select(
+        "*, customer:customers(id, name, document, phone, email, address, city, state, price_table), seller:sellers(id, name, phone, email)"
+      )
       .eq("id", data.id)
       .eq("user_id", userId)
       .single();
@@ -318,11 +330,19 @@ export const getOrder = createServerFn({ method: "GET" })
 
     const { data: items, error: itemsError } = await supabase
       .from("order_items")
-      .select("*, product:products(id, name)")
-      .eq("order_id", data.id);
+      .select("*")
+      .eq("order_id", data.id)
+      .order("code");
     if (itemsError) throw new Error(itemsError.message);
 
-    return { order, items: items ?? [] };
+    return {
+      order: {
+        ...order,
+        customer_name: order.customer?.name ?? null,
+        seller_name: order.seller?.name ?? null,
+      },
+      items: items ?? [],
+    };
   });
 
 export const upsertOrder = createServerFn({ method: "POST" })
@@ -331,16 +351,27 @@ export const upsertOrder = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
 
-    const total = data.items.reduce(
-      (sum, item) => sum + item.quantity * item.unit_price,
-      0
-    );
+    const computed = data.items.map((item) => {
+      const base = item.quantity * item.unit_price;
+      const ipi_value = (base * item.ipi_percent) / 100;
+      const st_value = (base * item.st_percent) / 100;
+      return { item, base, ipi_value, st_value };
+    });
+
+    const subtotal = computed.reduce((s, c) => s + c.base, 0);
+    const ipi_total = computed.reduce((s, c) => s + c.ipi_value, 0);
+    const st_total = computed.reduce((s, c) => s + c.st_value, 0);
+    const total = subtotal + ipi_total + st_total;
 
     const orderPayload = {
       user_id: userId,
       customer_id: data.customer_id,
       seller_id: data.seller_id,
       status: data.status,
+      price_table: data.price_table,
+      subtotal,
+      ipi_total,
+      st_total,
       total,
     };
 
@@ -365,12 +396,19 @@ export const upsertOrder = createServerFn({ method: "POST" })
       orderId = inserted.id;
     }
 
-    const itemsPayload = data.items.map((item) => ({
+    const itemsPayload = computed.map(({ item, base, ipi_value, st_value }) => ({
       order_id: orderId!,
-      product_id: item.product_id,
+      catalog_product_id: item.catalog_product_id,
+      code: item.code,
+      description: item.description,
+      image_url: item.image_url ?? null,
       quantity: item.quantity,
       unit_price: item.unit_price,
-      total: item.quantity * item.unit_price,
+      ipi_percent: item.ipi_percent,
+      st_percent: item.st_percent,
+      ipi_value,
+      st_value,
+      total: base + ipi_value + st_value,
     }));
 
     const { error: itemsError } = await supabase
@@ -379,6 +417,31 @@ export const upsertOrder = createServerFn({ method: "POST" })
     if (itemsError) throw new Error(itemsError.message);
 
     return { id: orderId };
+  });
+
+// Catalog
+export const listCatalog = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) =>
+    z.object({ search: z.string().optional() }).parse(data ?? {})
+  )
+  .handler(async ({ context, data }) => {
+    const { supabase } = context;
+    let query = supabase
+      .from("catalog_products")
+      .select("*")
+      .eq("active", true)
+      .order("code")
+      .limit(60);
+    const term = (data.search ?? "").trim();
+    if (term) {
+      query = query.or(
+        `code.ilike.%${term}%,ref.ilike.%${term}%,description.ilike.%${term}%,barcode.ilike.%${term}%`
+      );
+    }
+    const { data: rows, error } = await query;
+    if (error) throw new Error(error.message);
+    return rows ?? [];
   });
 
 export const updateOrderStatus = createServerFn({ method: "POST" })

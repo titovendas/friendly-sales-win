@@ -13,6 +13,14 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { PRICE_TABLES, priceTableLabel } from "@/lib/price-tables";
+import {
   Table,
   TableBody,
   TableCell,
@@ -46,6 +54,7 @@ const emptyCustomer = {
   address: "",
   city: "",
   state: "",
+  price_table: "varejo_10",
 };
 
 function CustomersPage() {
@@ -80,6 +89,7 @@ function CustomersPage() {
       address: customer.address ?? "",
       city: customer.city ?? "",
       state: customer.state ?? "",
+      price_table: customer.price_table ?? "varejo_10",
     });
     setDialogOpen(true);
   };
@@ -148,6 +158,7 @@ function CustomersPage() {
               <TableHead>Email</TableHead>
               <TableHead>Telefone</TableHead>
               <TableHead>Cidade/UF</TableHead>
+              <TableHead>Tabela</TableHead>
               <TableHead className="w-24 text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -155,7 +166,7 @@ function CustomersPage() {
             {isLoading ? (
               <TableRow>
                 <TableCell
-                  colSpan={5}
+                  colSpan={6}
                   className="h-32 text-center text-muted-foreground"
                 >
                   Carregando...
@@ -164,7 +175,7 @@ function CustomersPage() {
             ) : filtered.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={5}
+                  colSpan={6}
                   className="h-32 text-center text-muted-foreground"
                 >
                   Nenhum cliente encontrado.
@@ -181,6 +192,7 @@ function CustomersPage() {
                       .filter(Boolean)
                       .join("/") || "—"}
                   </TableCell>
+                  <TableCell>{priceTableLabel(customer.price_table)}</TableCell>
                   <TableCell className="text-right">
                     <Button
                       variant="ghost"
@@ -277,6 +289,24 @@ function CustomersPage() {
                   onChange={(e) => setForm({ ...form, state: e.target.value })}
                 />
               </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="price_table">Tabela de preço *</Label>
+              <Select
+                value={form.price_table}
+                onValueChange={(v) => setForm({ ...form, price_table: v })}
+              >
+                <SelectTrigger id="price_table">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PRICE_TABLES.map((t) => (
+                    <SelectItem key={t.value} value={t.value}>
+                      {t.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <DialogFooter>
               <Button type="submit" disabled={loading}>
