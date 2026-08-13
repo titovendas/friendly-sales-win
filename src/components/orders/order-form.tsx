@@ -43,11 +43,8 @@ export type FormItem = {
 
 type Props = {
   customers: any[];
-  sellers: any[];
   customerId: string;
   setCustomerId: (v: string) => void;
-  sellerId: string;
-  setSellerId: (v: string) => void;
   status: string;
   setStatus: (v: string) => void;
   priceTable: PriceTable;
@@ -58,11 +55,8 @@ type Props = {
 
 export function OrderForm({
   customers,
-  sellers,
   customerId,
   setCustomerId,
-  sellerId,
-  setSellerId,
   status,
   setStatus,
   priceTable,
@@ -140,7 +134,7 @@ export function OrderForm({
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-6 rounded-md border p-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-6 rounded-md border p-4 sm:grid-cols-2 lg:grid-cols-3">
         <div className="grid gap-2">
           <Label>Cliente *</Label>
           <Select value={customerId} onValueChange={onCustomerChange}>
@@ -151,21 +145,6 @@ export function OrderForm({
               {customers.map((c) => (
                 <SelectItem key={c.id} value={c.id}>
                   {c.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="grid gap-2">
-          <Label>Vendedor *</Label>
-          <Select value={sellerId} onValueChange={setSellerId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Selecione" />
-            </SelectTrigger>
-            <SelectContent>
-              {sellers.map((s) => (
-                <SelectItem key={s.id} value={s.id}>
-                  {s.name}
                 </SelectItem>
               ))}
             </SelectContent>
