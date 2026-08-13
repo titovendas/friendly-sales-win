@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Plus, Pencil, Trash2, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,14 +12,6 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { PRICE_TABLES, priceTableLabel } from "@/lib/price-tables";
 import {
   Table,
   TableBody,
@@ -32,6 +24,7 @@ import {
   listCustomers,
   upsertCustomer,
   deleteCustomer,
+  lookupCnpj,
 } from "@/lib/sales.functions";
 import { toast } from "sonner";
 
@@ -54,8 +47,16 @@ const emptyCustomer = {
   address: "",
   city: "",
   state: "",
-  price_table: "varejo_10",
 };
+
+function formatCnpj(value: string) {
+  const d = value.replace(/\D/g, "").slice(0, 14);
+  return d
+    .replace(/^(\d{2})(\d)/, "$1.$2")
+    .replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3")
+    .replace(/\.(\d{3})(\d)/, ".$1/$2")
+    .replace(/(\d{4})(\d)/, "$1-$2");
+}
 
 function CustomersPage() {
   const queryClient = useQueryClient();
@@ -67,15 +68,22 @@ function CustomersPage() {
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState(emptyCustomer);
+  const [cnpjInput, setCnpjInput] = useState("");
+  const [found, setFound] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [searchingCnpj, setSearchingCnpj] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const filtered = customers.filter((c: any) =>
-    c.name.toLowerCase().includes(search.toLowerCase())
+  const filtered = customers.filter(
+    (c: any) =>
+      c.name.toLowerCase().includes(search.toLowerCase()) ||
+      (c.document || "").includes(search.replace(/\D/g, ""))
   );
 
   const openNew = () => {
     setForm(emptyCustomer);
+    setCnpjInput("");
+    setFound(false);
     setDialogOpen(true);
   };
 
@@ -89,9 +97,38 @@ function CustomersPage() {
       address: customer.address ?? "",
       city: customer.city ?? "",
       state: customer.state ?? "",
-      price_table: customer.price_table ?? "varejo_10",
     });
+    setCnpjInput(customer.document ?? "");
+    setFound(true);
     setDialogOpen(true);
+  };
+
+  const handleSearchCnpj = async () => {
+    const digits = cnpjInput.replace(/\D/g, "");
+    if (digits.length !== 14) {
+      toast.error("Digite um CNPJ válido (14 números)");
+      return;
+    }
+    setSearchingCnpj(true);
+    try {
+      const result = await lookupCnpj({ data: { cnpj: digits } });
+      setForm({
+        id: form.id,
+        name: result.name,
+        email: result.email,
+        phone: result.phone,
+        document: result.document,
+        address: result.address,
+        city: result.city,
+        state: result.state,
+      });
+      setFound(true);
+      toast.success("Dados do CNPJ carregados");
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao buscar CNPJ");
+    } finally {
+      setSearchingCnpj(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -143,7 +180,7 @@ function CustomersPage() {
       <div className="relative">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
-          placeholder="Buscar clientes..."
+          placeholder="Buscar por nome ou CNPJ..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="pl-9"
@@ -155,10 +192,9 @@ function CustomersPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Nome</TableHead>
-              <TableHead>Email</TableHead>
+              <TableHead>CNPJ</TableHead>
               <TableHead>Telefone</TableHead>
               <TableHead>Cidade/UF</TableHead>
-              <TableHead>Tabela</TableHead>
               <TableHead className="w-24 text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -166,7 +202,7 @@ function CustomersPage() {
             {isLoading ? (
               <TableRow>
                 <TableCell
-                  colSpan={6}
+                  colSpan={5}
                   className="h-32 text-center text-muted-foreground"
                 >
                   Carregando...
@@ -175,7 +211,7 @@ function CustomersPage() {
             ) : filtered.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={6}
+                  colSpan={5}
                   className="h-32 text-center text-muted-foreground"
                 >
                   Nenhum cliente encontrado.
@@ -185,14 +221,15 @@ function CustomersPage() {
               filtered.map((customer: any) => (
                 <TableRow key={customer.id}>
                   <TableCell className="font-medium">{customer.name}</TableCell>
-                  <TableCell>{customer.email || "—"}</TableCell>
+                  <TableCell>
+                    {customer.document ? formatCnpj(customer.document) : "—"}
+                  </TableCell>
                   <TableCell>{customer.phone || "—"}</TableCell>
                   <TableCell>
                     {[customer.city, customer.state]
                       .filter(Boolean)
                       .join("/") || "—"}
                   </TableCell>
-                  <TableCell>{priceTableLabel(customer.price_table)}</TableCell>
                   <TableCell className="text-right">
                     <Button
                       variant="ghost"
@@ -223,97 +260,113 @@ function CustomersPage() {
               {form.id ? "Editar cliente" : "Novo cliente"}
             </DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="name">Nome *</Label>
+
+          <div className="grid gap-2">
+            <Label htmlFor="cnpj">CNPJ</Label>
+            <div className="flex gap-2">
               <Input
-                id="name"
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                required
+                id="cnpj"
+                placeholder="00.000.000/0000-00"
+                value={formatCnpj(cnpjInput)}
+                onChange={(e) => {
+                  setCnpjInput(e.target.value);
+                  setFound(false);
+                }}
+                maxLength={18}
               />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="phone">Telefone</Label>
-                <Input
-                  id="phone"
-                  value={form.phone}
-                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                />
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="document">Documento</Label>
-              <Input
-                id="document"
-                value={form.document}
-                onChange={(e) =>
-                  setForm({ ...form, document: e.target.value })
-                }
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="address">Endereço</Label>
-              <Input
-                id="address"
-                value={form.address}
-                onChange={(e) =>
-                  setForm({ ...form, address: e.target.value })
-                }
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="city">Cidade</Label>
-                <Input
-                  id="city"
-                  value={form.city}
-                  onChange={(e) => setForm({ ...form, city: e.target.value })}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="state">UF</Label>
-                <Input
-                  id="state"
-                  value={form.state}
-                  onChange={(e) => setForm({ ...form, state: e.target.value })}
-                />
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="price_table">Tabela de preço *</Label>
-              <Select
-                value={form.price_table}
-                onValueChange={(v) => setForm({ ...form, price_table: v })}
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={handleSearchCnpj}
+                disabled={searchingCnpj}
               >
-                <SelectTrigger id="price_table">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {PRICE_TABLES.map((t) => (
-                    <SelectItem key={t.value} value={t.value}>
-                      {t.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <DialogFooter>
-              <Button type="submit" disabled={loading}>
-                {loading ? "Salvando..." : "Salvar"}
+                {searchingCnpj ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  "Buscar"
+                )}
               </Button>
-            </DialogFooter>
-          </form>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Digite o CNPJ e clique em Buscar para preencher os dados
+              automaticamente. Você pode ajustar as informações antes de
+              salvar.
+            </p>
+          </div>
+
+          {(found || form.id) && (
+            <form onSubmit={handleSubmit} className="grid gap-4 py-2">
+              <div className="grid gap-2">
+                <Label htmlFor="name">Nome / Razão social *</Label>
+                <Input
+                  id="name"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={form.email}
+                    onChange={(e) =>
+                      setForm({ ...form, email: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="phone">Telefone</Label>
+                  <Input
+                    id="phone"
+                    value={form.phone}
+                    onChange={(e) =>
+                      setForm({ ...form, phone: e.target.value })
+                    }
+                  />
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="address">Endereço</Label>
+                <Input
+                  id="address"
+                  value={form.address}
+                  onChange={(e) =>
+                    setForm({ ...form, address: e.target.value })
+                  }
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="city">Cidade</Label>
+                  <Input
+                    id="city"
+                    value={form.city}
+                    onChange={(e) =>
+                      setForm({ ...form, city: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="state">UF</Label>
+                  <Input
+                    id="state"
+                    value={form.state}
+                    onChange={(e) =>
+                      setForm({ ...form, state: e.target.value })
+                    }
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="submit" disabled={loading}>
+                  {loading ? "Salvando..." : "Salvar"}
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
 
