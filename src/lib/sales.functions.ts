@@ -11,6 +11,8 @@ const orderStatusSchema = z.enum([
   "cancelled",
 ]);
 
+export const priceTableSchema = z.enum(["atacado", "varejo_10", "varejo_75"]);
+
 const customerSchema = z.object({
   id: z.string().uuid().optional(),
   name: z.string().min(1),
@@ -20,6 +22,7 @@ const customerSchema = z.object({
   address: z.string().optional().or(z.literal("")),
   city: z.string().optional().or(z.literal("")),
   state: z.string().optional().or(z.literal("")),
+  price_table: priceTableSchema.default("varejo_10"),
 });
 
 const productSchema = z.object({
