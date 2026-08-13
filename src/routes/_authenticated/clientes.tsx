@@ -261,112 +261,110 @@ function CustomersPage() {
             </DialogTitle>
           </DialogHeader>
 
-          <div className="grid gap-2">
-            <Label htmlFor="cnpj">CNPJ</Label>
-            <div className="flex gap-2">
-              <Input
-                id="cnpj"
-                placeholder="00.000.000/0000-00"
-                value={formatCnpj(cnpjInput)}
-                onChange={(e) => {
-                  setCnpjInput(e.target.value);
-                  setFound(false);
-                }}
-                maxLength={18}
-              />
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={handleSearchCnpj}
-                disabled={searchingCnpj}
-              >
-                {searchingCnpj ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  "Buscar"
-                )}
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Digite o CNPJ e clique em Buscar para preencher os dados
-              automaticamente. Você pode ajustar as informações antes de
-              salvar.
-            </p>
-          </div>
-
-          {(found || form.id) && (
-            <form onSubmit={handleSubmit} className="grid gap-4 py-2">
-              <div className="grid gap-2">
-                <Label htmlFor="name">Nome / Razão social *</Label>
+          <form onSubmit={handleSubmit} className="grid gap-4 py-2">
+            <div className="grid gap-2">
+              <Label htmlFor="cnpj">CNPJ (opcional)</Label>
+              <div className="flex gap-2">
                 <Input
-                  id="name"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  required
+                  id="cnpj"
+                  placeholder="00.000.000/0000-00"
+                  value={formatCnpj(cnpjInput)}
+                  onChange={(e) => {
+                    setCnpjInput(e.target.value);
+                    setForm({ ...form, document: e.target.value.replace(/\D/g, "") });
+                  }}
+                  maxLength={18}
                 />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={handleSearchCnpj}
+                  disabled={searchingCnpj}
+                >
+                  {searchingCnpj ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    "Buscar"
+                  )}
+                </Button>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={form.email}
-                    onChange={(e) =>
-                      setForm({ ...form, email: e.target.value })
-                    }
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="phone">Telefone</Label>
-                  <Input
-                    id="phone"
-                    value={form.phone}
-                    onChange={(e) =>
-                      setForm({ ...form, phone: e.target.value })
-                    }
-                  />
-                </div>
-              </div>
+              <p className="text-xs text-muted-foreground">
+                Se souber o CNPJ, digite e clique em Buscar para preencher os
+                dados automaticamente. Ou, se preferir, preencha só o nome
+                abaixo para um cadastro provisório.
+              </p>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="name">Nome / Razão social *</Label>
+              <Input
+                id="name"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                required
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="address">Endereço</Label>
+                <Label htmlFor="email">Email</Label>
                 <Input
-                  id="address"
-                  value={form.address}
+                  id="email"
+                  type="email"
+                  value={form.email}
                   onChange={(e) =>
-                    setForm({ ...form, address: e.target.value })
+                    setForm({ ...form, email: e.target.value })
                   }
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="city">Cidade</Label>
-                  <Input
-                    id="city"
-                    value={form.city}
-                    onChange={(e) =>
-                      setForm({ ...form, city: e.target.value })
-                    }
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="state">UF</Label>
-                  <Input
-                    id="state"
-                    value={form.state}
-                    onChange={(e) =>
-                      setForm({ ...form, state: e.target.value })
-                    }
-                  />
-                </div>
+              <div className="grid gap-2">
+                <Label htmlFor="phone">Telefone</Label>
+                <Input
+                  id="phone"
+                  value={form.phone}
+                  onChange={(e) =>
+                    setForm({ ...form, phone: e.target.value })
+                  }
+                />
               </div>
-              <DialogFooter>
-                <Button type="submit" disabled={loading}>
-                  {loading ? "Salvando..." : "Salvar"}
-                </Button>
-              </DialogFooter>
-            </form>
-          )}
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="address">Endereço</Label>
+              <Input
+                id="address"
+                value={form.address}
+                onChange={(e) =>
+                  setForm({ ...form, address: e.target.value })
+                }
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="city">Cidade</Label>
+                <Input
+                  id="city"
+                  value={form.city}
+                  onChange={(e) =>
+                    setForm({ ...form, city: e.target.value })
+                  }
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="state">UF</Label>
+                <Input
+                  id="state"
+                  value={form.state}
+                  onChange={(e) =>
+                    setForm({ ...form, state: e.target.value })
+                  }
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="submit" disabled={loading}>
+                {loading ? "Salvando..." : "Salvar"}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 
