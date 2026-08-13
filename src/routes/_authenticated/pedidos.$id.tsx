@@ -112,43 +112,88 @@ function OrderDetailPage() {
         <CardHeader>
           <CardTitle>Itens do pedido</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Produto</TableHead>
+                <TableHead className="w-16">Foto</TableHead>
+                <TableHead className="w-24">Código</TableHead>
+                <TableHead>Descrição</TableHead>
                 <TableHead className="text-right">Qtd</TableHead>
-                <TableHead className="text-right">Preço unitário</TableHead>
-                <TableHead className="text-right">Subtotal</TableHead>
+                <TableHead className="text-right">Unitário</TableHead>
+                <TableHead className="text-right">IPI</TableHead>
+                <TableHead className="text-right">ST</TableHead>
+                <TableHead className="text-right">Total</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {items.map((item: any) => (
                 <TableRow key={item.id}>
                   <TableCell>
-                    {item.product?.name || "Produto removido"}
+                    {item.image_url ? (
+                      <img
+                        src={item.image_url}
+                        alt={item.description ?? "Produto"}
+                        className="h-10 w-10 rounded border object-contain"
+                        loading="lazy"
+                      />
+                    ) : (
+                      "—"
+                    )}
+                  </TableCell>
+                  <TableCell className="font-mono text-xs">
+                    {item.code || "—"}
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    {item.description || "—"}
                   </TableCell>
                   <TableCell className="text-right">{item.quantity}</TableCell>
                   <TableCell className="text-right">
                     {formatCurrency(item.unit_price)}
                   </TableCell>
                   <TableCell className="text-right">
+                    {formatCurrency(item.ipi_value)}
+                    <span className="block text-xs text-muted-foreground">
+                      {item.ipi_percent}%
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {formatCurrency(item.st_value)}
+                    <span className="block text-xs text-muted-foreground">
+                      {item.st_percent}%
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-right font-medium">
                     {formatCurrency(item.total)}
                   </TableCell>
                 </TableRow>
               ))}
-              <TableRow>
-                <TableCell colSpan={3} className="text-right font-semibold">
-                  Total
-                </TableCell>
-                <TableCell className="text-right text-lg font-bold">
-                  {formatCurrency(order.total)}
-                </TableCell>
-              </TableRow>
             </TableBody>
           </Table>
+
+          <div className="mt-6 flex justify-end">
+            <div className="w-full max-w-xs space-y-1 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Subtotal</span>
+                <span>{formatCurrency(order.subtotal)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">IPI</span>
+                <span>{formatCurrency(order.ipi_total)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">ST</span>
+                <span>{formatCurrency(order.st_total)}</span>
+              </div>
+              <div className="flex justify-between border-t pt-2 text-lg font-bold">
+                <span>Total</span>
+                <span>{formatCurrency(order.total)}</span>
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
+
     </div>
   );
 }
