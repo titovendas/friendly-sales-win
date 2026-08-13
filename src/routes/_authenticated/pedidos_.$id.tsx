@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Package, User, Truck, FileDown, Tag } from "lucide-react";
+import { ArrowLeft, Package, User, FileDown, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -89,7 +89,7 @@ function OrderDetailPage() {
         </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-4">
+      <div className="grid gap-6 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center gap-2 pb-2">
             <User className="h-4 w-4 text-muted-foreground" />
@@ -98,17 +98,6 @@ function OrderDetailPage() {
           <CardContent>
             <p className="text-lg font-semibold">
               {order.customer_name || "—"}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center gap-2 pb-2">
-            <Truck className="h-4 w-4 text-muted-foreground" />
-            <CardTitle className="text-sm font-medium">Vendedor</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-lg font-semibold">
-              {order.seller_name || "—"}
             </p>
           </CardContent>
         </Card>
