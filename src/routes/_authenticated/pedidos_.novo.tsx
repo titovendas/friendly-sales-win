@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { listCustomers, listSellers, upsertOrder } from "@/lib/sales.functions";
+import { listCustomers, upsertOrder } from "@/lib/sales.functions";
 import { OrderForm, type FormItem } from "@/components/orders/order-form";
 import type { PriceTable } from "@/lib/price-tables";
 import { toast } from "sonner";
@@ -35,13 +35,8 @@ function NewOrderPage() {
     queryKey: ["customers"],
     queryFn: () => listCustomers(),
   });
-  const { data: sellers = [] } = useQuery({
-    queryKey: ["sellers"],
-    queryFn: () => listSellers(),
-  });
 
   const [customerId, setCustomerId] = useState("");
-  const [sellerId, setSellerId] = useState("");
   const [status, setStatus] = useState("pending");
   const [priceTable, setPriceTable] = useState<PriceTable>("varejo_10");
   const [items, setItems] = useState<FormItem[]>([]);
@@ -49,8 +44,8 @@ function NewOrderPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!customerId || !sellerId) {
-      toast.error("Selecione o cliente e o vendedor");
+    if (!customerId) {
+      toast.error("Selecione o cliente");
       return;
     }
     if (items.length === 0) {
@@ -62,7 +57,6 @@ function NewOrderPage() {
       const result = await upsertOrder({
         data: {
           customer_id: customerId,
-          seller_id: sellerId,
           status: status as any,
           price_table: priceTable,
           items: items.map(({ prices, ...item }) => item),
@@ -91,11 +85,8 @@ function NewOrderPage() {
       <form onSubmit={handleSubmit} className="space-y-6">
         <OrderForm
           customers={customers}
-          sellers={sellers}
           customerId={customerId}
           setCustomerId={setCustomerId}
-          sellerId={sellerId}
-          setSellerId={setSellerId}
           status={status}
           setStatus={setStatus}
           priceTable={priceTable}
