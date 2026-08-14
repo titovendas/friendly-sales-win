@@ -23,6 +23,15 @@ const optionalId = z
     message: "Invalid uuid",
   });
 
+export const PAYMENT_TERMS = [
+  "À vista",
+  "30 dias",
+  "30/60 dias",
+  "30/60/90 dias",
+  "45 dias",
+  "60 dias",
+] as const;
+
 const customerSchema = z.object({
   id: optionalId,
   name: z.string().min(1),
@@ -30,6 +39,8 @@ const customerSchema = z.object({
   phone: z.string().optional().or(z.literal("")),
   document: z.string().optional().or(z.literal("")),
   address: z.string().optional().or(z.literal("")),
+  neighborhood: z.string().optional().or(z.literal("")),
+  zip_code: z.string().optional().or(z.literal("")),
   city: z.string().optional().or(z.literal("")),
   state: z.string().optional().or(z.literal("")),
 });
@@ -70,6 +81,7 @@ const orderSchema = z.object({
   seller_id: optionalId,
   status: orderStatusSchema.default("pending"),
   price_table: priceTableSchema.default("varejo_10"),
+  payment_term: z.string().optional().or(z.literal("")),
   items: z.array(orderItemSchema).min(1),
 });
 
@@ -141,6 +153,8 @@ export const upsertCustomer = createServerFn({ method: "POST" })
       phone: data.phone || null,
       document: data.document || null,
       address: data.address || null,
+      neighborhood: data.neighborhood || null,
+      zip_code: data.zip_code || null,
       city: data.city || null,
       state: data.state || null,
     };
@@ -185,7 +199,6 @@ async function fetchFromBrasilApi(digits: string) {
     info.logradouro,
     info.numero,
     info.complemento,
-    info.bairro ? `- ${info.bairro}` : "",
   ]
     .filter(Boolean)
     .join(" ")
@@ -193,10 +206,12 @@ async function fetchFromBrasilApi(digits: string) {
   const phone = info.ddd_telefone_1 || info.telefone1 || "";
   return {
     document: digits,
-    name: info.nome_fantasia || info.razao_social || "",
+    name: info.razao_social || info.nome_fantasia || "",
     email: info.email || "",
     phone,
     address: street,
+    neighborhood: info.bairro || "",
+    zip_code: info.cep || "",
     city: info.municipio || "",
     state: info.uf || "",
   };
@@ -216,16 +231,18 @@ async function fetchFromReceitaWs(digits: string) {
   if (info.status === "ERROR") {
     throw new Error("NOT_FOUND");
   }
-  const street = [info.logradouro, info.numero, info.complemento, info.bairro]
+  const street = [info.logradouro, info.numero, info.complemento]
     .filter(Boolean)
     .join(" ")
     .trim();
   return {
     document: digits,
-    name: info.fantasia || info.nome || "",
+    name: info.nome || info.fantasia || "",
     email: info.email || "",
     phone: info.telefone || "",
     address: street,
+    neighborhood: info.bairro || "",
+    zip_code: info.cep || "",
     city: info.municipio || "",
     state: info.uf || "",
   };
@@ -424,7 +441,7 @@ export const getOrder = createServerFn({ method: "GET" })
     const { data: order, error } = await supabase
       .from("orders")
       .select(
-        "*, customer:customers(id, name, document, phone, email, address, city, state, price_table), seller:sellers(id, name, phone, email)"
+        "*, customer:customers(id, name, document, phone, email, address, neighborhood, zip_code, city, state, price_table), seller:sellers(id, name, phone, email)"
       )
       .eq("id", data.id)
       .eq("user_id", userId)
@@ -466,12 +483,28 @@ export const upsertOrder = createServerFn({ method: "POST" })
     const st_total = computed.reduce((s, c) => s + c.st_value, 0);
     const total = subtotal + ipi_total + st_total;
 
+    // Se nenhum vendedor foi informado, usa automaticamente o vendedor
+    // cadastrado para este usuário (o representante logado no sistema).
+    let sellerId = data.seller_id ?? null;
+    if (!sellerId) {
+      const { data: defaultSeller } = await supabase
+        .from("sellers")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("active", true)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      sellerId = defaultSeller?.id ?? null;
+    }
+
     const orderPayload = {
       user_id: userId,
       customer_id: data.customer_id,
-      seller_id: data.seller_id ?? null,
+      seller_id: sellerId,
       status: data.status,
       price_table: data.price_table,
+      payment_term: data.payment_term || null,
       subtotal,
       ipi_total,
       st_total,
