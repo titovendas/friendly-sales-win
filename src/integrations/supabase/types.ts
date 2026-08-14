@@ -349,7 +349,6 @@ export type Database = {
           customer_id: string | null
           customer_name: string | null
           id: string | null
-          payment_term: string | null
           seller_id: string | null
           seller_name: string | null
           status: string | null
