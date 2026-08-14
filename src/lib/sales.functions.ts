@@ -580,6 +580,31 @@ export const listCatalog = createServerFn({ method: "GET" })
     return rows ?? [];
   });
 
+// Retorna o catálogo completo (sem limite), usado para sincronizar a
+// cópia local que permite consultar preços e montar pedidos offline.
+export const listCatalogAll = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase } = context;
+    const pageSize = 500;
+    let from = 0;
+    const all: any[] = [];
+    while (true) {
+      const { data: rows, error } = await supabase
+        .from("catalog_products")
+        .select("*")
+        .eq("active", true)
+        .order("code")
+        .range(from, from + pageSize - 1);
+      if (error) throw new Error(error.message);
+      if (!rows || rows.length === 0) break;
+      all.push(...rows);
+      if (rows.length < pageSize) break;
+      from += pageSize;
+    }
+    return all;
+  });
+
 export const updateOrderStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) =>
