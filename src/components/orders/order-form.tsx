@@ -25,7 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { listCatalog } from "@/lib/sales.functions";
+import { searchCatalog } from "@/lib/offline-catalog";
 import { formatCurrency } from "@/lib/sales-formatters";
 import { PRICE_TABLES, catalogPrice, type PriceTable } from "@/lib/price-tables";
 import { PAYMENT_TERMS } from "@/lib/sales.functions";
@@ -72,11 +72,13 @@ export function OrderForm({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [search, setSearch] = useState("");
 
-  const { data: catalog = [], isLoading: catalogLoading } = useQuery({
+  const { data: catalogResult, isLoading: catalogLoading } = useQuery({
     queryKey: ["catalog", search],
-    queryFn: () => listCatalog({ data: { search } }),
+    queryFn: () => searchCatalog(search),
     enabled: pickerOpen,
   });
+  const catalog = catalogResult?.items ?? [];
+  const catalogFromCache = catalogResult?.fromCache ?? false;
 
   const totals = useMemo(() => {
     const subtotal = items.reduce((s, i) => s + i.quantity * i.unit_price, 0);
@@ -214,7 +216,7 @@ export function OrderForm({
           </Button>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="hidden overflow-x-auto sm:block">
           <Table>
             <TableHeader>
               <TableRow>
@@ -327,6 +329,120 @@ export function OrderForm({
           </Table>
         </div>
 
+        {/* Versão em cards para telas estreitas (celular) */}
+        <div className="space-y-3 sm:hidden">
+          {items.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              Nenhum produto adicionado.
+            </p>
+          ) : (
+            items.map((item, index) => {
+              const base = item.quantity * item.unit_price;
+              const ipi = (base * item.ipi_percent) / 100;
+              const st = (base * item.st_percent) / 100;
+              return (
+                <div
+                  key={item.catalog_product_id}
+                  className="space-y-3 rounded-md border p-3"
+                >
+                  <div className="flex items-start gap-3">
+                    {item.image_url ? (
+                      <img
+                        src={item.image_url}
+                        alt={item.description}
+                        className="h-12 w-12 shrink-0 rounded border object-contain"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="h-12 w-12 shrink-0 rounded border bg-muted" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="font-mono text-xs text-muted-foreground">
+                        {item.code}
+                      </p>
+                      <p className="text-sm font-medium leading-snug">
+                        {item.description}
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="shrink-0"
+                      onClick={() =>
+                        setItems((prev) => prev.filter((_, i) => i !== index))
+                      }
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="grid gap-1">
+                      <Label className="text-xs text-muted-foreground">Qtd</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={item.quantity}
+                        onChange={(e) =>
+                          setItems((prev) =>
+                            prev.map((i, idx) =>
+                              idx === index
+                                ? { ...i, quantity: parseInt(e.target.value) || 1 }
+                                : i
+                            )
+                          )
+                        }
+                      />
+                    </div>
+                    <div className="grid gap-1">
+                      <Label className="text-xs text-muted-foreground">
+                        Unitário
+                      </Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={item.unit_price}
+                        onChange={(e) =>
+                          setItems((prev) =>
+                            prev.map((i, idx) =>
+                              idx === index
+                                ? { ...i, unit_price: parseFloat(e.target.value) || 0 }
+                                : i
+                            )
+                          )
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 border-t pt-2 text-sm">
+                    <div>
+                      <p className="text-xs text-muted-foreground">
+                        IPI ({item.ipi_percent}%)
+                      </p>
+                      <p>{formatCurrency(ipi)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">
+                        ST ({item.st_percent}%)
+                      </p>
+                      <p>{formatCurrency(st)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-muted-foreground">Total</p>
+                      <p className="font-medium">
+                        {formatCurrency(base + ipi + st)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
         <div className="flex justify-end border-t pt-4">
           <div className="w-full max-w-xs space-y-1 text-sm">
             <div className="flex justify-between">
@@ -354,6 +470,11 @@ export function OrderForm({
           <DialogHeader>
             <DialogTitle>Buscar produto no catálogo</DialogTitle>
           </DialogHeader>
+          {catalogFromCache && (
+            <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700">
+              Sem conexão — mostrando o catálogo salvo no aparelho.
+            </p>
+          )}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
