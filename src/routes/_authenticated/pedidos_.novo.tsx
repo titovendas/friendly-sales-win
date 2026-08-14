@@ -39,6 +39,7 @@ function NewOrderPage() {
   const [customerId, setCustomerId] = useState("");
   const [status, setStatus] = useState("pending");
   const [priceTable, setPriceTable] = useState<PriceTable>("varejo_10");
+  const [paymentTerm, setPaymentTerm] = useState("");
   const [items, setItems] = useState<FormItem[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -59,6 +60,7 @@ function NewOrderPage() {
           customer_id: customerId,
           status: status as any,
           price_table: priceTable,
+          payment_term: paymentTerm,
           items: items.map(({ prices, ...item }) => item),
         },
       });
@@ -91,6 +93,8 @@ function NewOrderPage() {
           setStatus={setStatus}
           priceTable={priceTable}
           setPriceTable={setPriceTable}
+          paymentTerm={paymentTerm}
+          setPaymentTerm={setPaymentTerm}
           items={items}
           setItems={setItems}
         />
