@@ -28,6 +28,7 @@ import {
 import { listCatalog } from "@/lib/sales.functions";
 import { formatCurrency } from "@/lib/sales-formatters";
 import { PRICE_TABLES, catalogPrice, type PriceTable } from "@/lib/price-tables";
+import { PAYMENT_TERMS } from "@/lib/sales.functions";
 
 export type FormItem = {
   catalog_product_id: string;
@@ -49,6 +50,8 @@ type Props = {
   setStatus: (v: string) => void;
   priceTable: PriceTable;
   setPriceTable: (v: PriceTable) => void;
+  paymentTerm: string;
+  setPaymentTerm: (v: string) => void;
   items: FormItem[];
   setItems: React.Dispatch<React.SetStateAction<FormItem[]>>;
 };
@@ -61,6 +64,8 @@ export function OrderForm({
   setStatus,
   priceTable,
   setPriceTable,
+  paymentTerm,
+  setPaymentTerm,
   items,
   setItems,
 }: Props) {
@@ -134,7 +139,7 @@ export function OrderForm({
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-6 rounded-md border p-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-6 rounded-md border p-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="grid gap-2">
           <Label>Cliente *</Label>
           <Select value={customerId} onValueChange={onCustomerChange}>
@@ -163,6 +168,21 @@ export function OrderForm({
               {PRICE_TABLES.map((t) => (
                 <SelectItem key={t.value} value={t.value}>
                   {t.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="grid gap-2">
+          <Label>Condição de pagamento</Label>
+          <Select value={paymentTerm} onValueChange={setPaymentTerm}>
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione" />
+            </SelectTrigger>
+            <SelectContent>
+              {PAYMENT_TERMS.map((t) => (
+                <SelectItem key={t} value={t}>
+                  {t}
                 </SelectItem>
               ))}
             </SelectContent>
