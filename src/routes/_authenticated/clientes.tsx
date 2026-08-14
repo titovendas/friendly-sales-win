@@ -45,6 +45,8 @@ const emptyCustomer = {
   phone: "",
   document: "",
   address: "",
+  neighborhood: "",
+  zip_code: "",
   city: "",
   state: "",
 };
@@ -95,6 +97,8 @@ function CustomersPage() {
       phone: customer.phone ?? "",
       document: customer.document ?? "",
       address: customer.address ?? "",
+      neighborhood: customer.neighborhood ?? "",
+      zip_code: customer.zip_code ?? "",
       city: customer.city ?? "",
       state: customer.state ?? "",
     });
@@ -119,6 +123,8 @@ function CustomersPage() {
         phone: result.phone,
         document: result.document,
         address: result.address,
+        neighborhood: result.neighborhood,
+        zip_code: result.zip_code,
         city: result.city,
         state: result.state,
       });
@@ -328,14 +334,37 @@ function CustomersPage() {
               </div>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="address">Endereço</Label>
+              <Label htmlFor="address">Rua</Label>
               <Input
                 id="address"
+                placeholder="Rua, número, complemento"
                 value={form.address}
                 onChange={(e) =>
                   setForm({ ...form, address: e.target.value })
                 }
               />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="neighborhood">Bairro</Label>
+                <Input
+                  id="neighborhood"
+                  value={form.neighborhood}
+                  onChange={(e) =>
+                    setForm({ ...form, neighborhood: e.target.value })
+                  }
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="zip_code">CEP</Label>
+                <Input
+                  id="zip_code"
+                  value={form.zip_code}
+                  onChange={(e) =>
+                    setForm({ ...form, zip_code: e.target.value })
+                  }
+                />
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
