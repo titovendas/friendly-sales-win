@@ -15,6 +15,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import uzzyLogo from "@/assets/uzzy-logo.png";
+import { CatalogSyncStatus } from "@/components/layout/catalog-sync-status";
 
 const navItems = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -86,7 +87,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         ))}
       </nav>
 
-      <div className="border-t border-border p-3">
+      <div className="space-y-3 border-t border-border p-3">
+        <CatalogSyncStatus />
         <Button
           variant="ghost"
           className="w-full justify-start text-muted-foreground hover:text-foreground"
