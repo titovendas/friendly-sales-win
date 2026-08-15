@@ -21,11 +21,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  listCustomers,
   upsertCustomer,
   deleteCustomer,
   lookupCnpj,
 } from "@/lib/sales.functions";
+import {
+  listCustomersMerged,
+  queueCustomer,
+  removePendingCustomer,
+} from "@/lib/offline-queue";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/clientes")({
@@ -64,7 +68,7 @@ function CustomersPage() {
   const queryClient = useQueryClient();
   const { data: customers = [], isLoading } = useQuery({
     queryKey: ["customers"],
-    queryFn: () => listCustomers(),
+    queryFn: () => listCustomersMerged(),
   });
 
   const [search, setSearch] = useState("");
@@ -140,9 +144,35 @@ function CustomersPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    const isEditingPending = form.id?.startsWith("local-cust-");
+    const isOnline = typeof navigator === "undefined" || navigator.onLine;
+
     try {
-      await upsertCustomer({ data: form });
-      toast.success(form.id ? "Cliente atualizado" : "Cliente criado");
+      if (isEditingPending) {
+        // Cliente ainda não sincronizado: apenas atualiza a fila local.
+        await removePendingCustomer(form.id);
+        const { id: _unusedId, ...customerPayload } = form;
+        await queueCustomer(customerPayload);
+        toast.success("Cliente atualizado (salvo localmente)");
+      } else if (isOnline) {
+        try {
+          await upsertCustomer({ data: form });
+          toast.success(form.id ? "Cliente atualizado" : "Cliente criado");
+        } catch (err: any) {
+          // Falhou mesmo online (ex: instabilidade momentânea) — guarda local.
+          const { id: _unusedId, ...customerPayload } = form;
+        await queueCustomer(customerPayload);
+          toast.success(
+            "Sem conexão com o servidor — cliente salvo no aparelho e será enviado automaticamente."
+          );
+        }
+      } else {
+        const { id: _unusedId, ...customerPayload } = form;
+        await queueCustomer(customerPayload);
+        toast.success(
+          "Você está offline — cliente salvo no aparelho e será enviado quando a internet voltar."
+        );
+      }
       setDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
@@ -157,7 +187,11 @@ function CustomersPage() {
     if (!deleteId) return;
     setLoading(true);
     try {
-      await deleteCustomer({ data: { id: deleteId } });
+      if (deleteId.startsWith("local-cust-")) {
+        await removePendingCustomer(deleteId);
+      } else {
+        await deleteCustomer({ data: { id: deleteId } });
+      }
       toast.success("Cliente removido");
       setDeleteId(null);
       queryClient.invalidateQueries({ queryKey: ["customers"] });
@@ -226,7 +260,14 @@ function CustomersPage() {
             ) : (
               filtered.map((customer: any) => (
                 <TableRow key={customer.id}>
-                  <TableCell className="font-medium">{customer.name}</TableCell>
+                  <TableCell className="font-medium">
+                    {customer.name}
+                    {customer.__pending && (
+                      <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-normal text-amber-700">
+                        aguardando sincronização
+                      </span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     {customer.document ? formatCnpj(customer.document) : "—"}
                   </TableCell>
