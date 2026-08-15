@@ -13,12 +13,13 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedClientesRouteImport } from './routes/_authenticated/clientes'
+import { Route as AuthenticatedConfiguracoesRouteImport } from './routes/_authenticated/configuracoes'
 import { Route as AuthenticatedPedidosRouteImport } from './routes/_authenticated/pedidos'
 import { Route as AuthenticatedProdutosRouteImport } from './routes/_authenticated/produtos'
 import { Route as AuthenticatedVendedoresRouteImport } from './routes/_authenticated/vendedores'
 import { Route as AuthenticatedPedidosIdRouteImport } from './routes/_authenticated/pedidos_.$id'
 import { Route as AuthenticatedPedidosNovoRouteImport } from './routes/_authenticated/pedidos_.novo'
-import { Route as AuthenticatedPedidosIdEditarRouteImport } from './routes/_authenticated/pedidos_.$id.editar'
+import { Route as AuthenticatedPedidosIdEditarRouteImport } from './routes/_authenticated/pedidos_.$id_.editar'
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
@@ -39,6 +40,12 @@ const AuthenticatedClientesRoute = AuthenticatedClientesRouteImport.update({
   path: '/clientes',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedConfiguracoesRoute =
+  AuthenticatedConfiguracoesRouteImport.update({
+    id: '/configuracoes',
+    path: '/configuracoes',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedPedidosRoute = AuthenticatedPedidosRouteImport.update({
   id: '/pedidos',
   path: '/pedidos',
@@ -67,30 +74,32 @@ const AuthenticatedPedidosNovoRoute =
   } as any)
 const AuthenticatedPedidosIdEditarRoute =
   AuthenticatedPedidosIdEditarRouteImport.update({
-    id: '/editar',
-    path: '/editar',
-    getParentRoute: () => AuthenticatedPedidosIdRoute,
+    id: '/pedidos_/$id_/editar',
+    path: '/pedidos/$id/editar',
+    getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/auth': typeof AuthRoute
   '/clientes': typeof AuthenticatedClientesRoute
+  '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/pedidos': typeof AuthenticatedPedidosRoute
   '/produtos': typeof AuthenticatedProdutosRoute
   '/vendedores': typeof AuthenticatedVendedoresRoute
-  '/pedidos/$id': typeof AuthenticatedPedidosIdRouteWithChildren
+  '/pedidos/$id': typeof AuthenticatedPedidosIdRoute
   '/pedidos/novo': typeof AuthenticatedPedidosNovoRoute
   '/pedidos/$id/editar': typeof AuthenticatedPedidosIdEditarRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/clientes': typeof AuthenticatedClientesRoute
+  '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/pedidos': typeof AuthenticatedPedidosRoute
   '/produtos': typeof AuthenticatedProdutosRoute
   '/vendedores': typeof AuthenticatedVendedoresRoute
   '/': typeof AuthenticatedIndexRoute
-  '/pedidos/$id': typeof AuthenticatedPedidosIdRouteWithChildren
+  '/pedidos/$id': typeof AuthenticatedPedidosIdRoute
   '/pedidos/novo': typeof AuthenticatedPedidosNovoRoute
   '/pedidos/$id/editar': typeof AuthenticatedPedidosIdEditarRoute
 }
@@ -99,13 +108,14 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/clientes': typeof AuthenticatedClientesRoute
+  '/_authenticated/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/_authenticated/pedidos': typeof AuthenticatedPedidosRoute
   '/_authenticated/produtos': typeof AuthenticatedProdutosRoute
   '/_authenticated/vendedores': typeof AuthenticatedVendedoresRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
-  '/_authenticated/pedidos_/$id': typeof AuthenticatedPedidosIdRouteWithChildren
+  '/_authenticated/pedidos_/$id': typeof AuthenticatedPedidosIdRoute
   '/_authenticated/pedidos_/novo': typeof AuthenticatedPedidosNovoRoute
-  '/_authenticated/pedidos_/$id/editar': typeof AuthenticatedPedidosIdEditarRoute
+  '/_authenticated/pedidos_/$id_/editar': typeof AuthenticatedPedidosIdEditarRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -113,6 +123,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/clientes'
+    | '/configuracoes'
     | '/pedidos'
     | '/produtos'
     | '/vendedores'
@@ -123,6 +134,7 @@ export interface FileRouteTypes {
   to:
     | '/auth'
     | '/clientes'
+    | '/configuracoes'
     | '/pedidos'
     | '/produtos'
     | '/vendedores'
@@ -135,13 +147,14 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/clientes'
+    | '/_authenticated/configuracoes'
     | '/_authenticated/pedidos'
     | '/_authenticated/produtos'
     | '/_authenticated/vendedores'
     | '/_authenticated/'
     | '/_authenticated/pedidos_/$id'
     | '/_authenticated/pedidos_/novo'
-    | '/_authenticated/pedidos_/$id/editar'
+    | '/_authenticated/pedidos_/$id_/editar'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -179,6 +192,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClientesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/configuracoes': {
+      id: '/_authenticated/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/configuracoes'
+      preLoaderRoute: typeof AuthenticatedConfiguracoesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/pedidos': {
       id: '/_authenticated/pedidos'
       path: '/pedidos'
@@ -214,48 +234,38 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPedidosNovoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/pedidos_/$id/editar': {
-      id: '/_authenticated/pedidos_/$id/editar'
-      path: '/editar'
+    '/_authenticated/pedidos_/$id_/editar': {
+      id: '/_authenticated/pedidos_/$id_/editar'
+      path: '/pedidos/$id/editar'
       fullPath: '/pedidos/$id/editar'
       preLoaderRoute: typeof AuthenticatedPedidosIdEditarRouteImport
-      parentRoute: typeof AuthenticatedPedidosIdRoute
+      parentRoute: typeof AuthenticatedRouteRoute
     }
   }
 }
 
-interface AuthenticatedPedidosIdRouteChildren {
-  AuthenticatedPedidosIdEditarRoute: typeof AuthenticatedPedidosIdEditarRoute
-}
-
-const AuthenticatedPedidosIdRouteChildren: AuthenticatedPedidosIdRouteChildren =
-  {
-    AuthenticatedPedidosIdEditarRoute: AuthenticatedPedidosIdEditarRoute,
-  }
-
-const AuthenticatedPedidosIdRouteWithChildren =
-  AuthenticatedPedidosIdRoute._addFileChildren(
-    AuthenticatedPedidosIdRouteChildren,
-  )
-
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedClientesRoute: typeof AuthenticatedClientesRoute
+  AuthenticatedConfiguracoesRoute: typeof AuthenticatedConfiguracoesRoute
   AuthenticatedPedidosRoute: typeof AuthenticatedPedidosRoute
   AuthenticatedProdutosRoute: typeof AuthenticatedProdutosRoute
   AuthenticatedVendedoresRoute: typeof AuthenticatedVendedoresRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
-  AuthenticatedPedidosIdRoute: typeof AuthenticatedPedidosIdRouteWithChildren
+  AuthenticatedPedidosIdRoute: typeof AuthenticatedPedidosIdRoute
   AuthenticatedPedidosNovoRoute: typeof AuthenticatedPedidosNovoRoute
+  AuthenticatedPedidosIdEditarRoute: typeof AuthenticatedPedidosIdEditarRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedClientesRoute: AuthenticatedClientesRoute,
+  AuthenticatedConfiguracoesRoute: AuthenticatedConfiguracoesRoute,
   AuthenticatedPedidosRoute: AuthenticatedPedidosRoute,
   AuthenticatedProdutosRoute: AuthenticatedProdutosRoute,
   AuthenticatedVendedoresRoute: AuthenticatedVendedoresRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
-  AuthenticatedPedidosIdRoute: AuthenticatedPedidosIdRouteWithChildren,
+  AuthenticatedPedidosIdRoute: AuthenticatedPedidosIdRoute,
   AuthenticatedPedidosNovoRoute: AuthenticatedPedidosNovoRoute,
+  AuthenticatedPedidosIdEditarRoute: AuthenticatedPedidosIdEditarRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
