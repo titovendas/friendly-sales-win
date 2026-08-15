@@ -3,10 +3,14 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
-  listCustomers,
   getOrder,
   upsertOrder,
 } from "@/lib/sales.functions";
+import {
+  listCustomersMerged,
+  getOrderForDisplay,
+  updatePendingOrder,
+} from "@/lib/offline-queue";
 import { OrderForm, type FormItem } from "@/components/orders/order-form";
 import type { PriceTable } from "@/lib/price-tables";
 import { toast } from "sonner";
@@ -32,11 +36,15 @@ function EditOrderPage() {
 
   const { data: orderData, isLoading: orderLoading } = useQuery({
     queryKey: ["order", id],
-    queryFn: () => getOrder({ data: { id } }),
+    queryFn: async () => {
+      const local = await getOrderForDisplay(id);
+      if (local) return local;
+      return getOrder({ data: { id } });
+    },
   });
   const { data: customers = [] } = useQuery({
     queryKey: ["customers"],
-    queryFn: () => listCustomers(),
+    queryFn: () => listCustomersMerged(),
   });
   const [customerId, setCustomerId] = useState("");
   const [status, setStatus] = useState("pending");
@@ -82,18 +90,24 @@ function EditOrderPage() {
       return;
     }
     setLoading(true);
+    const isPending = id.startsWith("local-order-");
+    const orderPayload = {
+      customer_id: customerId,
+      status: status as any,
+      price_table: priceTable,
+      payment_term: paymentTerm,
+      items: items.map(({ prices, ...item }) => item),
+    };
     try {
-      await upsertOrder({
-        data: {
-          id,
-          customer_id: customerId,
-          status: status as any,
-          price_table: priceTable,
-          payment_term: paymentTerm,
-          items: items.map(({ prices, ...item }) => item),
-        },
-      });
-      toast.success("Pedido atualizado com sucesso");
+      if (isPending) {
+        const customerSnapshot =
+          customers.find((c: any) => c.id === customerId) ?? null;
+        await updatePendingOrder(id, orderPayload, customerSnapshot);
+        toast.success("Pedido atualizado (ainda aguardando sincronização)");
+      } else {
+        await upsertOrder({ data: { id, ...orderPayload } });
+        toast.success("Pedido atualizado com sucesso");
+      }
       queryClient.invalidateQueries({ queryKey: ["orders"] });
       queryClient.invalidateQueries({ queryKey: ["order", id] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
