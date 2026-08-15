@@ -340,6 +340,33 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_terms: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          label: string
+          sort_order: number
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          label: string
+          sort_order?: number
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          label?: string
+          sort_order?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       order_summary: {
@@ -349,6 +376,7 @@ export type Database = {
           customer_id: string | null
           customer_name: string | null
           id: string | null
+          payment_term: string | null
           seller_id: string | null
           seller_name: string | null
           status: string | null
