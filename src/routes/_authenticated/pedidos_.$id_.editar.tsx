@@ -2,14 +2,11 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  getOrder,
-  upsertOrder,
-} from "@/lib/sales.functions";
+import { getOrder, upsertOrder } from "@/lib/sales.functions";
 import {
   listCustomersMerged,
   getOrderForDisplay,
-  updatePendingOrder,
+  queueOrderUpsert,
 } from "@/lib/offline-queue";
 import { OrderForm, type FormItem } from "@/components/orders/order-form";
 import type { PriceTable } from "@/lib/price-tables";
@@ -90,6 +87,7 @@ function EditOrderPage() {
       return;
     }
     setLoading(true);
+    const isOnline = typeof navigator === "undefined" || navigator.onLine;
     const isPending = id.startsWith("local-order-");
     const orderPayload = {
       customer_id: customerId,
@@ -98,15 +96,31 @@ function EditOrderPage() {
       payment_term: paymentTerm,
       items: items.map(({ prices, ...item }) => item),
     };
+
+    const saveLocally = async () => {
+      const customerSnapshot =
+        customers.find((c: any) => c.id === customerId) ?? null;
+      await queueOrderUpsert(id, orderPayload, customerSnapshot);
+    };
+
     try {
-      if (isPending) {
-        const customerSnapshot =
-          customers.find((c: any) => c.id === customerId) ?? null;
-        await updatePendingOrder(id, orderPayload, customerSnapshot);
-        toast.success("Pedido atualizado (ainda aguardando sincronização)");
+      if (isOnline && !isPending) {
+        try {
+          await upsertOrder({ data: { id, ...orderPayload } });
+          toast.success("Pedido atualizado com sucesso");
+        } catch (err: any) {
+          await saveLocally();
+          toast.success(
+            "Sem conexão com o servidor — edição salva no aparelho e será enviada automaticamente."
+          );
+        }
       } else {
-        await upsertOrder({ data: { id, ...orderPayload } });
-        toast.success("Pedido atualizado com sucesso");
+        await saveLocally();
+        toast.success(
+          isOnline
+            ? "Pedido atualizado (ainda aguardando sincronização)"
+            : "Você está offline — edição salva no aparelho e será enviada quando a internet voltar."
+        );
       }
       queryClient.invalidateQueries({ queryKey: ["orders"] });
       queryClient.invalidateQueries({ queryKey: ["order", id] });
