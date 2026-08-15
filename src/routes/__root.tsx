@@ -88,6 +88,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "Sistema completo de força de vendas para gerenciar clientes, produtos, vendedores e pedidos.",
       },
       { name: "author", content: "Lovable" },
+      { name: "theme-color", content: "#c81e23" },
       { property: "og:title", content: "Força de Vendas" },
       {
         property: "og:description",
@@ -104,6 +105,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: appCss,
       },
       { rel: "icon", href: "/favicon.png", type: "image/png" },
+      { rel: "manifest", href: "/manifest.webmanifest" },
+      { rel: "apple-touch-icon", href: "/icon-192.png" },
     ],
   }),
   shellComponent: RootShell,
@@ -128,6 +131,16 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
+      return;
+    }
+    navigator.serviceWorker.register("/sw.js").catch(() => {
+      /* navegador sem suporte ou erro momentâneo — app segue funcionando
+         normalmente, só não terá cache offline do app shell */
+    });
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
