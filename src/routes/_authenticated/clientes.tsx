@@ -20,15 +20,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  upsertCustomer,
-  deleteCustomer,
-  lookupCnpj,
-} from "@/lib/sales.functions";
+import { upsertCustomer, deleteCustomer, lookupCnpj } from "@/lib/sales.functions";
 import {
   listCustomersMerged,
   queueCustomer,
-  removePendingCustomer,
+  queueCustomerUpsert,
+  queueCustomerDelete,
 } from "@/lib/offline-queue";
 import { toast } from "sonner";
 
@@ -144,33 +141,35 @@ function CustomersPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const isEditingPending = form.id?.startsWith("local-cust-");
     const isOnline = typeof navigator === "undefined" || navigator.onLine;
+    const { id: formId, ...customerPayload } = form;
+    const isNew = !formId;
+
+    const saveLocally = async () => {
+      if (isNew) {
+        await queueCustomer(customerPayload);
+      } else {
+        await queueCustomerUpsert(formId, customerPayload);
+      }
+    };
 
     try {
-      if (isEditingPending) {
-        // Cliente ainda não sincronizado: apenas atualiza a fila local.
-        await removePendingCustomer(form.id);
-        const { id: _unusedId, ...customerPayload } = form;
-        await queueCustomer(customerPayload);
-        toast.success("Cliente atualizado (salvo localmente)");
-      } else if (isOnline) {
+      if (isOnline && !formId?.startsWith("local-cust-")) {
         try {
           await upsertCustomer({ data: form });
-          toast.success(form.id ? "Cliente atualizado" : "Cliente criado");
+          toast.success(formId ? "Cliente atualizado" : "Cliente criado");
         } catch (err: any) {
-          // Falhou mesmo online (ex: instabilidade momentânea) — guarda local.
-          const { id: _unusedId, ...customerPayload } = form;
-        await queueCustomer(customerPayload);
+          await saveLocally();
           toast.success(
             "Sem conexão com o servidor — cliente salvo no aparelho e será enviado automaticamente."
           );
         }
       } else {
-        const { id: _unusedId, ...customerPayload } = form;
-        await queueCustomer(customerPayload);
+        await saveLocally();
         toast.success(
-          "Você está offline — cliente salvo no aparelho e será enviado quando a internet voltar."
+          isOnline
+            ? "Cliente atualizado (ainda aguardando sincronização)"
+            : "Você está offline — cliente salvo no aparelho e será enviado quando a internet voltar."
         );
       }
       setDialogOpen(false);
@@ -186,11 +185,16 @@ function CustomersPage() {
   const handleDelete = async () => {
     if (!deleteId) return;
     setLoading(true);
+    const isOnline = typeof navigator === "undefined" || navigator.onLine;
     try {
-      if (deleteId.startsWith("local-cust-")) {
-        await removePendingCustomer(deleteId);
+      if (isOnline && !deleteId.startsWith("local-cust-")) {
+        try {
+          await deleteCustomer({ data: { id: deleteId } });
+        } catch {
+          await queueCustomerDelete(deleteId);
+        }
       } else {
-        await deleteCustomer({ data: { id: deleteId } });
+        await queueCustomerDelete(deleteId);
       }
       toast.success("Cliente removido");
       setDeleteId(null);
