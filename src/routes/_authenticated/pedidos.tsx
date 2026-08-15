@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { deleteOrder } from "@/lib/sales.functions";
-import { listOrdersMerged, removePendingOrder } from "@/lib/offline-queue";
+import { listOrdersMerged, queueOrderDelete } from "@/lib/offline-queue";
 import { formatCurrency, formatDate, statusLabel, statusVariant } from "@/lib/sales-formatters";
 import { toast } from "sonner";
 
@@ -56,11 +56,16 @@ function OrdersPage() {
   const handleDelete = async () => {
     if (!deleteId) return;
     setLoading(true);
+    const isOnline = typeof navigator === "undefined" || navigator.onLine;
     try {
-      if (deleteId.startsWith("local-order-")) {
-        await removePendingOrder(deleteId);
+      if (isOnline && !deleteId.startsWith("local-order-")) {
+        try {
+          await deleteOrder({ data: { id: deleteId } });
+        } catch {
+          await queueOrderDelete(deleteId);
+        }
       } else {
-        await deleteOrder({ data: { id: deleteId } });
+        await queueOrderDelete(deleteId);
       }
       toast.success("Pedido removido");
       setDeleteId(null);
