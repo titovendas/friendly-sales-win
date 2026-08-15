@@ -28,7 +28,7 @@ import {
 import { searchCatalog } from "@/lib/offline-catalog";
 import { formatCurrency } from "@/lib/sales-formatters";
 import { PRICE_TABLES, catalogPrice, type PriceTable } from "@/lib/price-tables";
-import { PAYMENT_TERMS } from "@/lib/sales.functions";
+import { getPaymentTermsOfflineAware } from "@/lib/offline-customers";
 
 export type FormItem = {
   catalog_product_id: string;
@@ -79,6 +79,11 @@ export function OrderForm({
   });
   const catalog = catalogResult?.items ?? [];
   const catalogFromCache = catalogResult?.fromCache ?? false;
+
+  const { data: paymentTerms = [] } = useQuery({
+    queryKey: ["payment-terms"],
+    queryFn: () => getPaymentTermsOfflineAware(),
+  });
 
   const totals = useMemo(() => {
     const subtotal = items.reduce((s, i) => s + i.quantity * i.unit_price, 0);
@@ -182,9 +187,9 @@ export function OrderForm({
               <SelectValue placeholder="Selecione" />
             </SelectTrigger>
             <SelectContent>
-              {PAYMENT_TERMS.map((t) => (
-                <SelectItem key={t} value={t}>
-                  {t}
+              {paymentTerms.map((t) => (
+                <SelectItem key={t.id} value={t.label}>
+                  {t.label}
                 </SelectItem>
               ))}
             </SelectContent>
