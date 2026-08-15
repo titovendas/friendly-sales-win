@@ -6,6 +6,7 @@ import {
   getCatalogSyncedAt,
   getOfflineCatalogCount,
 } from "@/lib/offline-catalog";
+import { syncPendingData, pendingCount } from "@/lib/offline-queue";
 
 function formatSyncedAt(iso: string | null) {
   if (!iso) return "nunca sincronizado";
@@ -26,11 +27,13 @@ export function CatalogSyncStatus() {
   );
   const [syncedAt, setSyncedAt] = useState<string | null>(null);
   const [count, setCount] = useState(0);
+  const [pending, setPending] = useState(0);
   const [syncing, setSyncing] = useState(false);
 
   const refreshStatus = async () => {
     setSyncedAt(await getCatalogSyncedAt());
     setCount(await getOfflineCatalogCount());
+    setPending(await pendingCount());
   };
 
   useEffect(() => {
@@ -51,6 +54,7 @@ export function CatalogSyncStatus() {
     setSyncing(true);
     try {
       await syncCatalog();
+      await syncPendingData();
       await refreshStatus();
     } catch {
       /* sem internet ou erro momentâneo */
@@ -77,6 +81,12 @@ export function CatalogSyncStatus() {
       <p className="text-muted-foreground">
         Atualizado {formatSyncedAt(syncedAt)}
       </p>
+      {pending > 0 && (
+        <p className="font-medium text-amber-700">
+          {pending} {pending === 1 ? "item" : "itens"} aguardando
+          sincronização
+        </p>
+      )}
       <Button
         type="button"
         variant="outline"
@@ -86,7 +96,7 @@ export function CatalogSyncStatus() {
         disabled={syncing || !online}
       >
         <RefreshCw className={`mr-1.5 h-3 w-3 ${syncing ? "animate-spin" : ""}`} />
-        {syncing ? "Atualizando..." : "Atualizar catálogo"}
+        {syncing ? "Sincronizando..." : "Sincronizar agora"}
       </Button>
     </div>
   );
