@@ -20,7 +20,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { listOrders, deleteOrder } from "@/lib/sales.functions";
+import { deleteOrder } from "@/lib/sales.functions";
+import { listOrdersMerged, removePendingOrder } from "@/lib/offline-queue";
 import { formatCurrency, formatDate, statusLabel, statusVariant } from "@/lib/sales-formatters";
 import { toast } from "sonner";
 
@@ -38,7 +39,7 @@ function OrdersPage() {
   const queryClient = useQueryClient();
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ["orders"],
-    queryFn: () => listOrders(),
+    queryFn: () => listOrdersMerged(),
   });
 
   const [search, setSearch] = useState("");
@@ -56,7 +57,11 @@ function OrdersPage() {
     if (!deleteId) return;
     setLoading(true);
     try {
-      await deleteOrder({ data: { id: deleteId } });
+      if (deleteId.startsWith("local-order-")) {
+        await removePendingOrder(deleteId);
+      } else {
+        await deleteOrder({ data: { id: deleteId } });
+      }
       toast.success("Pedido removido");
       setDeleteId(null);
       queryClient.invalidateQueries({ queryKey: ["orders"] });
@@ -130,6 +135,11 @@ function OrdersPage() {
                 <TableRow key={order.id!}>
                   <TableCell className="font-medium">
                     #{order.id!.slice(0, 8)}
+                    {order.__pending && (
+                      <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-normal text-amber-700">
+                        aguardando sincronização
+                      </span>
+                    )}
                   </TableCell>
                   <TableCell>{order.customer_name || "—"}</TableCell>
                   <TableCell>{formatDate(order.created_at)}</TableCell>
