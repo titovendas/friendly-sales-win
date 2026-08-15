@@ -5,6 +5,7 @@ import {
   Package,
   ShoppingCart,
   UserCircle,
+  Settings,
   Menu,
   LogOut,
   ChevronRight,
@@ -23,6 +24,7 @@ const navItems = [
   { to: "/produtos", label: "Produtos", icon: Package },
   { to: "/pedidos", label: "Pedidos", icon: ShoppingCart },
   { to: "/vendedores", label: "Vendedores", icon: UserCircle },
+  { to: "/configuracoes", label: "Configurações", icon: Settings },
 ];
 
 function NavLink({
