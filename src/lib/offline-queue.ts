@@ -4,6 +4,8 @@ import {
   listOrders,
   upsertCustomer,
   upsertOrder,
+  deleteCustomer,
+  deleteOrder,
 } from "@/lib/sales.functions";
 import {
   getOfflineCustomers,
@@ -11,8 +13,8 @@ import {
   getDefaultSellerNameOffline,
 } from "@/lib/offline-customers";
 
-const PENDING_CUSTOMERS_KEY = "fv:pending:customers";
-const PENDING_ORDERS_KEY = "fv:pending:orders";
+const PENDING_CUSTOMERS_KEY = "fv:pending:customers:v2";
+const PENDING_ORDERS_KEY = "fv:pending:orders:v2";
 
 export type OrderItemPayload = {
   catalog_product_id: string;
@@ -46,20 +48,38 @@ export type CustomerPayload = {
   state?: string;
 };
 
-export type PendingCustomer = {
-  localId: string;
-  payload: CustomerPayload; // shape compatible with customerSchema (minus id)
-  createdAt: string;
+type OrderTotals = {
+  subtotal: number;
+  ipi_total: number;
+  st_total: number;
+  total: number;
 };
 
-export type PendingOrder = {
-  localId: string;
-  payload: OrderPayload; // shape compatible with orderSchema (minus id)
-  customerSnapshot: CustomerPayload | null;
-  sellerNameSnapshot: string | null;
-  totals: { subtotal: number; ipi_total: number; st_total: number; total: number };
-  createdAt: string;
-};
+export type PendingCustomerOp =
+  | { type: "create"; localId: string; payload: CustomerPayload; createdAt: string }
+  | { type: "update"; id: string; payload: CustomerPayload; createdAt: string }
+  | { type: "delete"; id: string; createdAt: string };
+
+export type PendingOrderOp =
+  | {
+      type: "create";
+      localId: string;
+      payload: OrderPayload;
+      customerSnapshot: CustomerPayload | null;
+      sellerNameSnapshot: string | null;
+      totals: OrderTotals;
+      createdAt: string;
+    }
+  | {
+      type: "update";
+      id: string;
+      payload: OrderPayload;
+      customerSnapshot: CustomerPayload | null;
+      sellerNameSnapshot: string | null;
+      totals: OrderTotals;
+      createdAt: string;
+    }
+  | { type: "delete"; id: string; createdAt: string };
 
 function genLocalId(prefix: string) {
   const rand =
@@ -69,42 +89,19 @@ function genLocalId(prefix: string) {
   return `${prefix}-${rand}`;
 }
 
-async function getPendingCustomers(): Promise<PendingCustomer[]> {
-  return (await get<PendingCustomer[]>(PENDING_CUSTOMERS_KEY)) ?? [];
+function isOnlineNow() {
+  return typeof navigator === "undefined" || navigator.onLine;
 }
 
-async function getPendingOrders(): Promise<PendingOrder[]> {
-  return (await get<PendingOrder[]>(PENDING_ORDERS_KEY)) ?? [];
+async function getPendingCustomerOps(): Promise<PendingCustomerOp[]> {
+  return (await get<PendingCustomerOp[]>(PENDING_CUSTOMERS_KEY)) ?? [];
 }
 
-export async function listPendingCustomers() {
-  return getPendingCustomers();
+async function getPendingOrderOps(): Promise<PendingOrderOp[]> {
+  return (await get<PendingOrderOp[]>(PENDING_ORDERS_KEY)) ?? [];
 }
 
-export async function listPendingOrders() {
-  return getPendingOrders();
-}
-
-export async function queueCustomer(payload: CustomerPayload) {
-  const pending = await getPendingCustomers();
-  const record: PendingCustomer = {
-    localId: genLocalId("local-cust"),
-    payload,
-    createdAt: new Date().toISOString(),
-  };
-  await set(PENDING_CUSTOMERS_KEY, [...pending, record]);
-  return record;
-}
-
-export async function removePendingCustomer(localId: string) {
-  const pending = await getPendingCustomers();
-  await set(
-    PENDING_CUSTOMERS_KEY,
-    pending.filter((c) => c.localId !== localId)
-  );
-}
-
-export function computeOrderTotals(items: OrderItemPayload[]) {
+export function computeOrderTotals(items: OrderItemPayload[]): OrderTotals {
   let subtotal = 0;
   let ipi_total = 0;
   let st_total = 0;
@@ -122,13 +119,93 @@ export function computeOrderTotals(items: OrderItemPayload[]) {
   };
 }
 
+// ---------- Clientes ----------
+
+/** Cria um cliente novo offline (ainda sem id real no servidor). */
+export async function queueCustomer(payload: CustomerPayload) {
+  const pending = await getPendingCustomerOps();
+  const record: PendingCustomerOp = {
+    type: "create",
+    localId: genLocalId("local-cust"),
+    payload,
+    createdAt: new Date().toISOString(),
+  };
+  await set(PENDING_CUSTOMERS_KEY, [...pending, record]);
+  return record;
+}
+
+/**
+ * Atualiza um cliente offline. Se `id` for de um cliente ainda não
+ * sincronizado (prefixo local-cust-), substitui os dados da própria
+ * criação pendente. Se for um cliente já existente no servidor, guarda uma
+ * edição pendente para enviar quando a internet voltar.
+ */
+export async function queueCustomerUpsert(
+  id: string,
+  payload: CustomerPayload
+) {
+  const pending = await getPendingCustomerOps();
+
+  if (id.startsWith("local-cust-")) {
+    const next = pending.map((op): PendingCustomerOp =>
+      op.type === "create" && op.localId === id
+        ? { ...op, payload }
+        : op
+    );
+    await set(PENDING_CUSTOMERS_KEY, next);
+    return;
+  }
+
+  const withoutPreviousUpdate = pending.filter(
+    (op) => !(op.type === "update" && op.id === id)
+  );
+  const record: PendingCustomerOp = {
+    type: "update",
+    id,
+    payload,
+    createdAt: new Date().toISOString(),
+  };
+  await set(PENDING_CUSTOMERS_KEY, [...withoutPreviousUpdate, record]);
+}
+
+/**
+ * Remove um cliente. Se ele nunca chegou a ser sincronizado, simplesmente
+ * cancela a criação pendente. Se já existe no servidor, guarda a exclusão
+ * para quando a internet voltar.
+ */
+export async function queueCustomerDelete(id: string) {
+  const pending = await getPendingCustomerOps();
+
+  if (id.startsWith("local-cust-")) {
+    await set(
+      PENDING_CUSTOMERS_KEY,
+      pending.filter((op) => !(op.type === "create" && op.localId === id))
+    );
+    return;
+  }
+
+  const withoutPreviousOps = pending.filter(
+    (op) =>
+      !((op.type === "update" || op.type === "delete") && op.id === id)
+  );
+  const record: PendingCustomerOp = {
+    type: "delete",
+    id,
+    createdAt: new Date().toISOString(),
+  };
+  await set(PENDING_CUSTOMERS_KEY, [...withoutPreviousOps, record]);
+}
+
+// ---------- Pedidos ----------
+
 export async function queueOrder(
   payload: OrderPayload,
   customerSnapshot: CustomerPayload | null
 ) {
-  const pending = await getPendingOrders();
+  const pending = await getPendingOrderOps();
   const sellerNameSnapshot = await getDefaultSellerNameOffline();
-  const record: PendingOrder = {
+  const record: PendingOrderOp = {
+    type: "create",
     localId: genLocalId("local-order"),
     payload,
     customerSnapshot,
@@ -140,111 +217,145 @@ export async function queueOrder(
   return record;
 }
 
-export async function updatePendingOrder(
-  localId: string,
+export async function queueOrderUpsert(
+  id: string,
   payload: OrderPayload,
   customerSnapshot: CustomerPayload | null
 ) {
-  const pending = await getPendingOrders();
-  const next = pending.map((o) =>
-    o.localId === localId
-      ? {
-          ...o,
-          payload,
-          customerSnapshot: customerSnapshot ?? o.customerSnapshot,
-          totals: computeOrderTotals(payload.items ?? []),
-        }
-      : o
+  const pending = await getPendingOrderOps();
+  const sellerNameSnapshot = await getDefaultSellerNameOffline();
+  const totals = computeOrderTotals(payload.items ?? []);
+
+  if (id.startsWith("local-order-")) {
+    const next = pending.map((op): PendingOrderOp =>
+      op.type === "create" && op.localId === id
+        ? {
+            ...op,
+            payload,
+            customerSnapshot: customerSnapshot ?? op.customerSnapshot,
+            totals,
+          }
+        : op
+    );
+    await set(PENDING_ORDERS_KEY, next);
+    return;
+  }
+
+  const withoutPreviousUpdate = pending.filter(
+    (op) => !(op.type === "update" && op.id === id)
   );
-  await set(PENDING_ORDERS_KEY, next);
+  const record: PendingOrderOp = {
+    type: "update",
+    id,
+    payload,
+    customerSnapshot,
+    sellerNameSnapshot,
+    totals,
+    createdAt: new Date().toISOString(),
+  };
+  await set(PENDING_ORDERS_KEY, [...withoutPreviousUpdate, record]);
 }
 
-export async function removePendingOrder(localId: string) {
-  const pending = await getPendingOrders();
-  await set(
-    PENDING_ORDERS_KEY,
-    pending.filter((o) => o.localId !== localId)
+export async function queueOrderDelete(id: string) {
+  const pending = await getPendingOrderOps();
+
+  if (id.startsWith("local-order-")) {
+    await set(
+      PENDING_ORDERS_KEY,
+      pending.filter((op) => !(op.type === "create" && op.localId === id))
+    );
+    return;
+  }
+
+  const withoutPreviousOps = pending.filter(
+    (op) =>
+      !((op.type === "update" || op.type === "delete") && op.id === id)
   );
+  const record: PendingOrderOp = {
+    type: "delete",
+    id,
+    createdAt: new Date().toISOString(),
+  };
+  await set(PENDING_ORDERS_KEY, [...withoutPreviousOps, record]);
 }
 
-export async function getPendingOrder(localId: string) {
-  const pending = await getPendingOrders();
-  return pending.find((o) => o.localId === localId) ?? null;
-}
-
-export async function getPendingCustomer(localId: string) {
-  const pending = await getPendingCustomers();
-  return pending.find((c) => c.localId === localId) ?? null;
-}
+// ---------- Leitura para exibição/edição ----------
 
 /**
- * Monta um pedido (com itens) para exibição/edição/PDF a partir de um id
- * qualquer: se for um pedido ainda não sincronizado (prefixo local-order-),
- * reconstrói a partir da fila local; caso contrário, busca no servidor.
+ * Monta um pedido (com itens) para exibição/edição/PDF quando há uma
+ * versão local (pendente) dele — seja recém-criado offline, seja uma
+ * edição offline de um pedido que já existia no servidor. Retorna `null`
+ * quando não há nada pendente para esse id, e quem chamou deve buscar no
+ * servidor normalmente.
  */
 export async function getOrderForDisplay(id: string) {
-  if (!id.startsWith("local-order-")) return null; // caller usa getOrder()
+  const pending = await getPendingOrderOps();
+  const op = pending.find(
+    (o) =>
+      (o.type === "create" && o.localId === id) ||
+      (o.type === "update" && o.id === id)
+  ) as Extract<PendingOrderOp, { type: "create" | "update" }> | undefined;
 
-  const po = await getPendingOrder(id);
-  if (!po) return null;
+  if (!op) return null;
 
   const order = {
-    id: po.localId,
-    created_at: po.createdAt,
-    customer_id: po.payload.customer_id,
-    customer_name: po.customerSnapshot?.name ?? "—",
-    customer: po.customerSnapshot,
-    seller_name: po.sellerNameSnapshot,
-    status: po.payload.status,
-    price_table: po.payload.price_table,
-    payment_term: po.payload.payment_term,
-    subtotal: po.totals.subtotal,
-    ipi_total: po.totals.ipi_total,
-    st_total: po.totals.st_total,
-    total: po.totals.total,
+    id,
+    created_at: op.createdAt,
+    customer_id: op.payload.customer_id,
+    customer_name: op.customerSnapshot?.name ?? "—",
+    customer: op.customerSnapshot,
+    seller_name: op.sellerNameSnapshot,
+    status: op.payload.status,
+    price_table: op.payload.price_table,
+    payment_term: op.payload.payment_term,
+    subtotal: op.totals.subtotal,
+    ipi_total: op.totals.ipi_total,
+    st_total: op.totals.st_total,
+    total: op.totals.total,
     __pending: true,
   };
 
-  const items = (po.payload.items ?? []).map((item: any, index: number) => {
-    const base = item.quantity * item.unit_price;
-    const ipi_value = (base * (item.ipi_percent || 0)) / 100;
-    const st_value = (base * (item.st_percent || 0)) / 100;
-    return {
-      id: `${po.localId}-item-${index}`,
-      catalog_product_id: item.catalog_product_id,
-      code: item.code,
-      description: item.description,
-      image_url: item.image_url ?? null,
-      quantity: item.quantity,
-      unit_price: item.unit_price,
-      ipi_percent: item.ipi_percent,
-      st_percent: item.st_percent,
-      ipi_value,
-      st_value,
-      total: base + ipi_value + st_value,
-    };
-  });
+  const items = (op.payload.items ?? []).map(
+    (item: OrderItemPayload, index: number) => {
+      const base = item.quantity * item.unit_price;
+      const ipi_value = (base * (item.ipi_percent || 0)) / 100;
+      const st_value = (base * (item.st_percent || 0)) / 100;
+      return {
+        id: `${id}-item-${index}`,
+        catalog_product_id: item.catalog_product_id,
+        code: item.code,
+        description: item.description,
+        image_url: item.image_url ?? null,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        ipi_percent: item.ipi_percent,
+        st_percent: item.st_percent,
+        ipi_value,
+        st_value,
+        total: base + ipi_value + st_value,
+      };
+    }
+  );
 
   return { order, items };
 }
 
 export async function pendingCount() {
   const [customers, orders] = await Promise.all([
-    getPendingCustomers(),
-    getPendingOrders(),
+    getPendingCustomerOps(),
+    getPendingOrderOps(),
   ]);
   return customers.length + orders.length;
 }
 
 /**
- * Lista de clientes pronta para exibir/usar em telas offline: tenta o
- * servidor; se falhar, usa a cópia local. Em ambos os casos, inclui os
- * clientes criados offline que ainda não foram sincronizados.
+ * Lista de clientes pronta para exibir/usar offline: tenta o servidor,
+ * cai para a cópia local se falhar. Aplica por cima as edições/exclusões
+ * pendentes e inclui os clientes criados offline.
  */
 export async function listCustomersMerged(): Promise<any[]> {
-  const isOnline = typeof navigator === "undefined" || navigator.onLine;
   let base: any[] = [];
-  if (isOnline) {
+  if (isOnlineNow()) {
     try {
       base = await listCustomers();
     } catch {
@@ -254,23 +365,42 @@ export async function listCustomersMerged(): Promise<any[]> {
     base = await getOfflineCustomers();
   }
 
-  const pending = await getPendingCustomers();
-  const pendingAsCustomers = pending.map((c) => ({
-    id: c.localId,
-    ...c.payload,
-    __pending: true,
-  }));
-  return [...pendingAsCustomers, ...base];
+  const pending = await getPendingCustomerOps();
+  const deletedIds = new Set(
+    pending.filter((op) => op.type === "delete").map((op) => op.id)
+  );
+  const updates = new Map(
+    pending
+      .filter((op) => op.type === "update")
+      .map((op) => [op.id, op.payload])
+  );
+  const creates = pending.filter((op) => op.type === "create");
+
+  const merged = base
+    .filter((c) => !deletedIds.has(c.id))
+    .map((c) =>
+      updates.has(c.id)
+        ? { ...c, ...updates.get(c.id), id: c.id, __pending: true }
+        : c
+    );
+
+  const createdAsCustomers = creates.map((op) =>
+    op.type === "create"
+      ? { id: op.localId, ...op.payload, __pending: true }
+      : op
+  );
+
+  return [...createdAsCustomers, ...merged];
 }
 
 /**
- * Lista de pedidos para a tela de Pedidos: pedidos do servidor (quando
- * online) mais os pedidos ainda não sincronizados, sempre no topo.
+ * Lista de pedidos pronta para exibir offline: pedidos do servidor (quando
+ * online) com as edições/exclusões pendentes aplicadas por cima, mais os
+ * pedidos criados offline.
  */
 export async function listOrdersMerged(): Promise<any[]> {
-  const isOnline = typeof navigator === "undefined" || navigator.onLine;
   let base: any[] = [];
-  if (isOnline) {
+  if (isOnlineNow()) {
     try {
       base = await listOrders();
     } catch {
@@ -278,32 +408,62 @@ export async function listOrdersMerged(): Promise<any[]> {
     }
   }
 
-  const pending = await getPendingOrders();
-  const pendingAsOrders = pending.map((po) => ({
-    id: po.localId,
-    created_at: po.createdAt,
-    customer_name: po.customerSnapshot?.name ?? "—",
-    seller_name: po.sellerNameSnapshot,
-    status: po.payload.status,
-    payment_term: po.payload.payment_term,
-    total: po.totals.total,
-    __pending: true,
-  }));
-  return [...pendingAsOrders, ...base];
+  const pending = await getPendingOrderOps();
+  const deletedIds = new Set(
+    pending.filter((op) => op.type === "delete").map((op) => op.id)
+  );
+  const updates = new Map(
+    pending.filter((op) => op.type === "update").map((op) => [op.id, op])
+  );
+  const creates = pending.filter((op) => op.type === "create");
+
+  const merged = base
+    .filter((o) => !deletedIds.has(o.id))
+    .map((o) => {
+      const update = updates.get(o.id);
+      if (!update || update.type !== "update") return o;
+      return {
+        ...o,
+        customer_name: update.customerSnapshot?.name ?? o.customer_name,
+        status: update.payload.status,
+        payment_term: update.payload.payment_term,
+        total: update.totals.total,
+        __pending: true,
+      };
+    });
+
+  const createdAsOrders = creates.map((op) =>
+    op.type === "create"
+      ? {
+          id: op.localId,
+          created_at: op.createdAt,
+          customer_name: op.customerSnapshot?.name ?? "—",
+          seller_name: op.sellerNameSnapshot,
+          status: op.payload.status,
+          payment_term: op.payload.payment_term,
+          total: op.totals.total,
+          __pending: true,
+        }
+      : op
+  );
+
+  return [...createdAsOrders, ...merged];
 }
 
+// ---------- Sincronização ----------
+
 /**
- * Sincroniza tudo que foi criado offline: primeiro os clientes (para obter
- * IDs reais), depois os pedidos (remapeando o cliente local para o real
- * quando necessário). Itens que falharem continuam na fila para a próxima
- * tentativa.
+ * Envia tudo que foi feito offline para o servidor: clientes primeiro
+ * (criações, edições e exclusões, nessa ordem), depois pedidos, remapeando
+ * o cliente local para o id real quando necessário. Itens que falharem
+ * continuam na fila para a próxima tentativa.
  */
 export async function syncPendingData(): Promise<{
   syncedCustomers: number;
   syncedOrders: number;
   failed: number;
 }> {
-  if (typeof navigator !== "undefined" && navigator.onLine === false) {
+  if (!isOnlineNow()) {
     return { syncedCustomers: 0, syncedOrders: 0, failed: 0 };
   }
 
@@ -311,38 +471,58 @@ export async function syncPendingData(): Promise<{
   let syncedOrders = 0;
   let failed = 0;
 
-  // 1) Clientes pendentes primeiro, guardando o mapeamento local -> real
   const idMap = new Map<string, string>();
-  const pendingCustomers = await getPendingCustomers();
-  for (const pc of pendingCustomers) {
+  const pendingCustomerOps = await getPendingCustomerOps();
+
+  for (const op of pendingCustomerOps) {
     try {
-      const result = await upsertCustomer({ data: pc.payload });
-      if (result?.id) idMap.set(pc.localId, result.id);
-      await removePendingCustomer(pc.localId);
-      syncedCustomers++;
+      if (op.type === "create") {
+        const result = await upsertCustomer({ data: op.payload });
+        if (result?.id) idMap.set(op.localId, result.id);
+        await removeCustomerOp(op);
+        syncedCustomers++;
+      } else if (op.type === "update") {
+        await upsertCustomer({ data: { ...op.payload, id: op.id } });
+        await removeCustomerOp(op);
+        syncedCustomers++;
+      } else {
+        await deleteCustomer({ data: { id: op.id } });
+        await removeCustomerOp(op);
+        syncedCustomers++;
+      }
     } catch {
       failed++;
     }
   }
 
-  // 2) Pedidos pendentes, remapeando cliente local -> real se preciso
-  const pendingOrders = await getPendingOrders();
-  for (const po of pendingOrders) {
+  const pendingOrderOps = await getPendingOrderOps();
+  for (const op of pendingOrderOps) {
     try {
-      let customerId = po.payload.customer_id as string;
+      if (op.type === "delete") {
+        await deleteOrder({ data: { id: op.id } });
+        await removeOrderOp(op);
+        syncedOrders++;
+        continue;
+      }
+
+      let customerId = op.payload.customer_id;
       if (customerId?.startsWith("local-cust-")) {
         const realId = idMap.get(customerId);
         if (!realId) {
-          // cliente ainda não sincronizado (falhou acima) — tenta depois
           failed++;
           continue;
         }
         customerId = realId;
       }
-      await upsertOrder({
-        data: { ...po.payload, customer_id: customerId },
-      });
-      await removePendingOrder(po.localId);
+
+      if (op.type === "create") {
+        await upsertOrder({ data: { ...op.payload, customer_id: customerId } });
+      } else {
+        await upsertOrder({
+          data: { ...op.payload, customer_id: customerId, id: op.id },
+        });
+      }
+      await removeOrderOp(op);
       syncedOrders++;
     } catch {
       failed++;
@@ -354,4 +534,20 @@ export async function syncPendingData(): Promise<{
   }
 
   return { syncedCustomers, syncedOrders, failed };
+}
+
+async function removeCustomerOp(target: PendingCustomerOp) {
+  const pending = await getPendingCustomerOps();
+  await set(
+    PENDING_CUSTOMERS_KEY,
+    pending.filter((op) => op !== target)
+  );
+}
+
+async function removeOrderOp(target: PendingOrderOp) {
+  const pending = await getPendingOrderOps();
+  await set(
+    PENDING_ORDERS_KEY,
+    pending.filter((op) => op !== target)
+  );
 }
