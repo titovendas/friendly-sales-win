@@ -2,7 +2,8 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { listCustomers, upsertOrder } from "@/lib/sales.functions";
+import { upsertOrder } from "@/lib/sales.functions";
+import { listCustomersMerged, queueOrder } from "@/lib/offline-queue";
 import { OrderForm, type FormItem } from "@/components/orders/order-form";
 import type { PriceTable } from "@/lib/price-tables";
 import { toast } from "sonner";
@@ -33,7 +34,7 @@ function NewOrderPage() {
   const queryClient = useQueryClient();
   const { data: customers = [] } = useQuery({
     queryKey: ["customers"],
-    queryFn: () => listCustomers(),
+    queryFn: () => listCustomersMerged(),
   });
 
   const [customerId, setCustomerId] = useState("");
@@ -54,20 +55,40 @@ function NewOrderPage() {
       return;
     }
     setLoading(true);
+    const orderPayload = {
+      customer_id: customerId,
+      status: status as any,
+      price_table: priceTable,
+      payment_term: paymentTerm,
+      items: items.map(({ prices, ...item }) => item),
+    };
+    const isOnline = typeof navigator === "undefined" || navigator.onLine;
+
     try {
-      const result = await upsertOrder({
-        data: {
-          customer_id: customerId,
-          status: status as any,
-          price_table: priceTable,
-          payment_term: paymentTerm,
-          items: items.map(({ prices, ...item }) => item),
-        },
-      });
-      toast.success("Pedido criado com sucesso");
+      if (isOnline) {
+        try {
+          const result = await upsertOrder({ data: orderPayload });
+          toast.success("Pedido criado com sucesso");
+          queryClient.invalidateQueries({ queryKey: ["orders"] });
+          queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+          navigate({ to: "/pedidos/$id", params: { id: result.id! } });
+          return;
+        } catch (err: any) {
+          // Sem conexão com o servidor mesmo online (ex: instabilidade) —
+          // guarda localmente e segue.
+        }
+      }
+
+      const customerSnapshot =
+        customers.find((c: any) => c.id === customerId) ?? null;
+      const record = await queueOrder(orderPayload, customerSnapshot);
+      toast.success(
+        isOnline
+          ? "Sem conexão com o servidor — pedido salvo no aparelho e será enviado automaticamente."
+          : "Você está offline — pedido salvo no aparelho e será enviado quando a internet voltar."
+      );
       queryClient.invalidateQueries({ queryKey: ["orders"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
-      navigate({ to: "/pedidos/$id", params: { id: result.id! } });
+      navigate({ to: "/pedidos/$id", params: { id: record.localId } });
     } catch (err: any) {
       toast.error(err.message || "Erro ao criar pedido");
     } finally {
