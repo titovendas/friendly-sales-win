@@ -23,7 +23,9 @@ const optionalId = z
     message: "Invalid uuid",
   });
 
-export const PAYMENT_TERMS = [
+// Lista usada apenas como sugestão inicial (tela de Configurações) e como
+// reserva quando ainda não há nada cadastrado nem em cache offline.
+export const DEFAULT_PAYMENT_TERMS = [
   "À vista",
   "30 dias",
   "30/60 dias",
@@ -31,6 +33,87 @@ export const PAYMENT_TERMS = [
   "45 dias",
   "60 dias",
 ] as const;
+
+const paymentTermSchema = z.object({
+  id: optionalId,
+  label: z.string().min(1),
+  active: z.boolean().default(true),
+  sort_order: z.coerce.number().int().default(0),
+});
+
+export const listPaymentTerms = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { data, error } = await supabase
+      .from("payment_terms")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("active", true)
+      .order("sort_order", { ascending: true })
+      .order("label", { ascending: true });
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  });
+
+/**
+ * Importa uma lista de prazos de pagamento de uma vez (usado pela tela de
+ * Configurações após o usuário escolher a coluna da planilha). Prazos com
+ * o mesmo nome já existentes são apenas atualizados, não duplicados.
+ */
+export const importPaymentTerms = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) =>
+    z.object({ labels: z.array(z.string().min(1)) }).parse(data)
+  )
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const uniqueLabels = Array.from(
+      new Set(data.labels.map((l) => l.trim()).filter(Boolean))
+    );
+    if (uniqueLabels.length === 0) {
+      throw new Error("Nenhum prazo de pagamento válido encontrado na coluna selecionada.");
+    }
+    const rows = uniqueLabels.map((label, index) => ({
+      user_id: userId,
+      label,
+      active: true,
+      sort_order: index,
+    }));
+    const { error } = await supabase
+      .from("payment_terms")
+      .upsert(rows, { onConflict: "user_id,label" });
+    if (error) throw new Error(error.message);
+    return { imported: rows.length };
+  });
+
+export const deletePaymentTerm = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) => z.object({ id: z.string().uuid() }).parse(data))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const { error } = await supabase
+      .from("payment_terms")
+      .delete()
+      .eq("id", data.id)
+      .eq("user_id", userId);
+    if (error) throw new Error(error.message);
+    return { success: true };
+  });
+
+/** Remove todos os prazos de pagamento do usuário (usado antes de uma
+ * reimportação, quando o usuário escolhe "substituir tudo"). */
+export const clearPaymentTerms = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { error } = await supabase
+      .from("payment_terms")
+      .delete()
+      .eq("user_id", userId);
+    if (error) throw new Error(error.message);
+    return { success: true };
+  });
 
 const customerSchema = z.object({
   id: optionalId,
