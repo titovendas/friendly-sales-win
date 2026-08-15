@@ -13,6 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getOrder } from "@/lib/sales.functions";
+import { getOrderForDisplay } from "@/lib/offline-queue";
 import {
   formatCurrency,
   formatDate,
@@ -37,7 +38,11 @@ function OrderDetailPage() {
   const { id } = Route.useParams();
   const { data, isLoading } = useQuery({
     queryKey: ["order", id],
-    queryFn: () => getOrder({ data: { id } }),
+    queryFn: async () => {
+      const local = await getOrderForDisplay(id);
+      if (local) return local;
+      return getOrder({ data: { id } });
+    },
   });
 
   if (isLoading || !data) {
@@ -62,6 +67,11 @@ function OrderDetailPage() {
           <div>
             <h1 className="text-3xl font-bold tracking-tight">
               Pedido #{id.slice(0, 8)}
+              {(order as any).__pending && (
+                <span className="ml-3 align-middle rounded bg-amber-100 px-2 py-1 text-xs font-normal text-amber-700">
+                  aguardando sincronização
+                </span>
+              )}
             </h1>
             <p className="text-muted-foreground">
               Criado em {formatDate(order.created_at)}
