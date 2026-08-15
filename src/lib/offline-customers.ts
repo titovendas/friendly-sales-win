@@ -1,9 +1,15 @@
 import { get, set } from "idb-keyval";
-import { listCustomers, listSellers } from "@/lib/sales.functions";
+import {
+  listCustomers,
+  listSellers,
+  listPaymentTerms,
+  DEFAULT_PAYMENT_TERMS,
+} from "@/lib/sales.functions";
 
 const CUSTOMERS_KEY = "fv:customers:v1";
 const CUSTOMERS_SYNCED_AT_KEY = "fv:customers:syncedAt";
 const SELLER_NAME_KEY = "fv:defaultSellerName";
+const PAYMENT_TERMS_KEY = "fv:paymentTerms:v1";
 
 let syncInFlight: Promise<any[]> | null = null;
 
@@ -49,4 +55,36 @@ export async function syncDefaultSellerName() {
 
 export async function getDefaultSellerNameOffline(): Promise<string | null> {
   return (await get(SELLER_NAME_KEY)) ?? null;
+}
+
+export async function syncPaymentTerms(): Promise<
+  { id: string; label: string }[] | null
+> {
+  try {
+    const rows = await listPaymentTerms();
+    const simplified = rows.map((r) => ({ id: r.id, label: r.label }));
+    await set(PAYMENT_TERMS_KEY, simplified);
+    return simplified;
+  } catch {
+    return null;
+  }
+}
+
+/** Lista de prazos de pagamento pronta pra usar em qualquer tela: tenta o
+ * servidor, cai pra cópia local, e se nunca sincronizou nada ainda usa uma
+ * pequena lista padrão de exemplo. */
+export async function getPaymentTermsOfflineAware(): Promise<
+  { id: string; label: string }[]
+> {
+  const isOnline = typeof navigator === "undefined" || navigator.onLine;
+  if (isOnline) {
+    const rows = await syncPaymentTerms();
+    if (rows && rows.length > 0) return rows;
+    if (rows && rows.length === 0) {
+      return DEFAULT_PAYMENT_TERMS.map((label) => ({ id: label, label }));
+    }
+  }
+  const cached = (await get<{ id: string; label: string }[]>(PAYMENT_TERMS_KEY)) ?? [];
+  if (cached.length > 0) return cached;
+  return DEFAULT_PAYMENT_TERMS.map((label) => ({ id: label, label }));
 }
