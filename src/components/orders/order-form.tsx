@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Plus, Search, Trash2 } from "lucide-react";
+import { Plus, Search, Trash2, ArrowLeft, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,6 +17,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
+import { ProductImage } from "@/components/products/product-image";
 import {
   Table,
   TableBody,
@@ -46,8 +48,6 @@ type Props = {
   customers: any[];
   customerId: string;
   setCustomerId: (v: string) => void;
-  status: string;
-  setStatus: (v: string) => void;
   priceTable: PriceTable;
   setPriceTable: (v: PriceTable) => void;
   paymentTerm: string;
@@ -60,8 +60,6 @@ export function OrderForm({
   customers,
   customerId,
   setCustomerId,
-  status,
-  setStatus,
   priceTable,
   setPriceTable,
   paymentTerm,
@@ -71,6 +69,8 @@ export function OrderForm({
 }: Props) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
+  const [selectedQty, setSelectedQty] = useState(1);
 
   const { data: catalogResult, isLoading: catalogLoading } = useQuery({
     queryKey: ["catalog", search],
@@ -85,6 +85,21 @@ export function OrderForm({
     queryFn: () => getPaymentTermsOfflineAware(),
   });
 
+  const customerOptions = useMemo(
+    () =>
+      customers.map((c) => ({
+        value: c.id,
+        label: c.name,
+        sublabel: c.document || c.city || undefined,
+      })),
+    [customers]
+  );
+
+  const paymentTermOptions = useMemo(
+    () => paymentTerms.map((t) => ({ value: t.label, label: t.label })),
+    [paymentTerms]
+  );
+
   const totals = useMemo(() => {
     const subtotal = items.reduce((s, i) => s + i.quantity * i.unit_price, 0);
     const ipi = items.reduce(
@@ -98,10 +113,6 @@ export function OrderForm({
     return { subtotal, ipi, st, total: subtotal + ipi + st };
   }, [items]);
 
-  const onCustomerChange = (value: string) => {
-    setCustomerId(value);
-  };
-
   const changePriceTable = (table: PriceTable) => {
     setPriceTable(table);
     setItems((prev) =>
@@ -112,13 +123,13 @@ export function OrderForm({
     );
   };
 
-  const addProduct = (product: any) => {
+  const addProduct = (product: any, quantity: number) => {
     setItems((prev) => {
       const existing = prev.find((i) => i.catalog_product_id === product.id);
       if (existing) {
         return prev.map((i) =>
           i.catalog_product_id === product.id
-            ? { ...i, quantity: i.quantity + 1 }
+            ? { ...i, quantity: i.quantity + quantity }
             : i
         );
       }
@@ -129,7 +140,7 @@ export function OrderForm({
           code: product.code,
           description: product.description,
           image_url: product.image_url ?? null,
-          quantity: 1,
+          quantity,
           unit_price: catalogPrice(product, priceTable),
           ipi_percent: Number(product.ipi_percent ?? 0),
           st_percent: Number(product.st_percent ?? 0),
@@ -141,26 +152,41 @@ export function OrderForm({
         },
       ];
     });
+  };
+
+  const handlePickProduct = (product: any) => {
+    setSelectedProduct(product);
+    setSelectedQty(1);
+  };
+
+  const handleConfirmAdd = () => {
+    if (!selectedProduct) return;
+    addProduct(selectedProduct, Math.max(1, selectedQty));
+    setSelectedProduct(null);
+    setSelectedQty(1);
+    setSearch("");
     setPickerOpen(false);
+  };
+
+  const closePicker = () => {
+    setPickerOpen(false);
+    setSelectedProduct(null);
+    setSelectedQty(1);
   };
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-6 rounded-md border p-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-6 rounded-md border p-4 sm:grid-cols-2 lg:grid-cols-3">
         <div className="grid gap-2">
           <Label>Cliente *</Label>
-          <Select value={customerId} onValueChange={onCustomerChange}>
-            <SelectTrigger>
-              <SelectValue placeholder="Selecione" />
-            </SelectTrigger>
-            <SelectContent>
-              {customers.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Combobox
+            options={customerOptions}
+            value={customerId}
+            onValueChange={setCustomerId}
+            placeholder="Selecione o cliente"
+            searchPlaceholder="Buscar por nome ou CNPJ..."
+            emptyText="Nenhum cliente encontrado."
+          />
         </div>
         <div className="grid gap-2">
           <Label>Tabela de preço *</Label>
@@ -182,34 +208,14 @@ export function OrderForm({
         </div>
         <div className="grid gap-2">
           <Label>Condição de pagamento</Label>
-          <Select value={paymentTerm} onValueChange={setPaymentTerm}>
-            <SelectTrigger>
-              <SelectValue placeholder="Selecione" />
-            </SelectTrigger>
-            <SelectContent>
-              {paymentTerms.map((t) => (
-                <SelectItem key={t.id} value={t.label}>
-                  {t.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="grid gap-2">
-          <Label>Status</Label>
-          <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="pending">Pendente</SelectItem>
-              <SelectItem value="confirmed">Confirmado</SelectItem>
-              <SelectItem value="paid">Pago</SelectItem>
-              <SelectItem value="shipped">Enviado</SelectItem>
-              <SelectItem value="delivered">Entregue</SelectItem>
-              <SelectItem value="cancelled">Cancelado</SelectItem>
-            </SelectContent>
-          </Select>
+          <Combobox
+            options={paymentTermOptions}
+            value={paymentTerm}
+            onValueChange={setPaymentTerm}
+            placeholder="Selecione"
+            searchPlaceholder="Buscar prazo..."
+            emptyText="Nenhum prazo cadastrado. Cadastre em Configurações."
+          />
         </div>
       </div>
 
@@ -251,16 +257,11 @@ export function OrderForm({
                   return (
                     <TableRow key={item.catalog_product_id}>
                       <TableCell>
-                        {item.image_url ? (
-                          <img
-                            src={item.image_url}
-                            alt={item.description}
-                            className="h-10 w-10 rounded border object-contain"
-                            loading="lazy"
-                          />
-                        ) : (
-                          "—"
-                        )}
+                        <ProductImage
+                          src={item.image_url}
+                          alt={item.description}
+                          className="h-10 w-10"
+                        />
                       </TableCell>
                       <TableCell className="font-mono text-xs">{item.code}</TableCell>
                       <TableCell className="max-w-[280px] truncate text-sm">
@@ -351,16 +352,11 @@ export function OrderForm({
                   className="space-y-3 rounded-md border p-3"
                 >
                   <div className="flex items-start gap-3">
-                    {item.image_url ? (
-                      <img
-                        src={item.image_url}
-                        alt={item.description}
-                        className="h-12 w-12 shrink-0 rounded border object-contain"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="h-12 w-12 shrink-0 rounded border bg-muted" />
-                    )}
+                    <ProductImage
+                      src={item.image_url}
+                      alt={item.description}
+                      className="h-12 w-12 shrink-0"
+                    />
                     <div className="min-w-0 flex-1">
                       <p className="font-mono text-xs text-muted-foreground">
                         {item.code}
@@ -470,66 +466,144 @@ export function OrderForm({
         </div>
       </div>
 
-      <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
+      <Dialog open={pickerOpen} onOpenChange={(open) => (open ? setPickerOpen(true) : closePicker())}>
         <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Buscar produto no catálogo</DialogTitle>
-          </DialogHeader>
-          {catalogFromCache && (
-            <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700">
-              Sem conexão — mostrando o catálogo salvo no aparelho.
-            </p>
-          )}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              autoFocus
-              placeholder="Código, referência, descrição ou código de barras..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9"
-            />
-          </div>
-          <div className="max-h-[50vh] space-y-2 overflow-y-auto">
-            {catalogLoading ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">
-                Carregando...
-              </p>
-            ) : catalog.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">
-                Nenhum produto encontrado.
-              </p>
-            ) : (
-              catalog.map((p: any) => (
-                <button
-                  key={p.id}
+          {selectedProduct ? (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="-ml-2 h-7 w-7"
+                    onClick={() => setSelectedProduct(null)}
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                  </Button>
+                  Quantidade
+                </DialogTitle>
+              </DialogHeader>
+              <div className="flex items-center gap-3">
+                <ProductImage
+                  src={selectedProduct.image_url}
+                  alt={selectedProduct.description}
+                  className="h-16 w-16 shrink-0"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium">{selectedProduct.description}</p>
+                  <p className="text-sm text-muted-foreground">
+                    Cód. {selectedProduct.code} ·{" "}
+                    {formatCurrency(catalogPrice(selectedProduct, priceTable))} /
+                    un.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-center gap-3 py-2">
+                <Button
                   type="button"
-                  onClick={() => addProduct(p)}
-                  className="flex w-full items-center gap-3 rounded-md border p-2 text-left hover:bg-accent"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setSelectedQty((q) => Math.max(1, q - 1))}
                 >
-                  {p.image_url ? (
-                    <img
-                      src={p.image_url}
-                      alt={p.description}
-                      className="h-12 w-12 rounded border object-contain"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="h-12 w-12 rounded border" />
+                  <Minus className="h-4 w-4" />
+                </Button>
+                <Input
+                  type="number"
+                  min={1}
+                  value={selectedQty}
+                  onChange={(e) => setSelectedQty(parseInt(e.target.value) || 1)}
+                  className="w-24 text-center text-lg"
+                  autoFocus
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setSelectedQty((q) => q + 1)}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <p className="text-center text-sm text-muted-foreground">
+                Subtotal:{" "}
+                <span className="font-medium text-foreground">
+                  {formatCurrency(
+                    catalogPrice(selectedProduct, priceTable) * selectedQty
                   )}
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{p.description}</p>
-                    <p className="text-xs text-muted-foreground">
-                      Cód. {p.code} · IPI {p.ipi_percent}% · ST {p.st_percent}%
-                    </p>
-                  </div>
-                  <div className="text-right text-sm font-semibold">
-                    {formatCurrency(catalogPrice(p, priceTable))}
-                  </div>
-                </button>
-              ))
-            )}
-          </div>
+                </span>
+              </p>
+
+              <Button type="button" onClick={handleConfirmAdd} className="w-full">
+                Adicionar ao pedido
+              </Button>
+            </>
+          ) : (
+            <>
+              <DialogHeader>
+                <DialogTitle>Buscar produto no catálogo</DialogTitle>
+              </DialogHeader>
+              {catalogFromCache && (
+                <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                  Sem conexão — mostrando o catálogo salvo no aparelho.
+                </p>
+              )}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  autoFocus
+                  placeholder="Código, referência, descrição ou código de barras..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <div className="max-h-[50vh] space-y-2 overflow-y-auto">
+                {catalogLoading ? (
+                  <p className="py-8 text-center text-sm text-muted-foreground">
+                    Carregando...
+                  </p>
+                ) : catalog.length === 0 ? (
+                  <p className="py-8 text-center text-sm text-muted-foreground">
+                    Nenhum produto encontrado.
+                  </p>
+                ) : (
+                  catalog.map((p: any) => (
+                    <div
+                      key={p.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => handlePickProduct(p)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          handlePickProduct(p);
+                        }
+                      }}
+                      className="flex w-full cursor-pointer items-center gap-3 rounded-md border p-2 text-left hover:bg-accent"
+                    >
+                      <ProductImage
+                        src={p.image_url}
+                        alt={p.description}
+                        className="h-12 w-12 shrink-0"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">{p.description}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Cód. {p.code} · IPI {p.ipi_percent}% · ST {p.st_percent}%
+                        </p>
+                      </div>
+                      <div className="text-right text-sm font-semibold">
+                        {formatCurrency(catalogPrice(p, priceTable))}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>
