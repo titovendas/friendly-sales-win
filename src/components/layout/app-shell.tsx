@@ -9,14 +9,18 @@ import {
   Menu,
   LogOut,
   ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import uzzyLogo from "@/assets/uzzy-logo.png";
 import { CatalogSyncStatus } from "@/components/layout/catalog-sync-status";
+
+const SIDEBAR_COLLAPSED_KEY = "fv:sidebar-collapsed";
 
 const navItems = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -32,11 +36,13 @@ function NavLink({
   label,
   icon: Icon,
   onClick,
+  collapsed,
 }: {
   to: string;
   label: string;
   icon: React.ElementType;
   onClick?: () => void;
+  collapsed?: boolean;
 }) {
   const location = useLocation();
   const active =
@@ -46,36 +52,64 @@ function NavLink({
     <Link
       to={to}
       onClick={onClick}
+      title={collapsed ? label : undefined}
       className={cn(
         "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+        collapsed && "justify-center px-2",
         active
           ? "bg-primary text-primary-foreground"
           : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
       )}
     >
-      <Icon className="h-5 w-5" />
-      {label}
-      {active && <ChevronRight className="ml-auto h-4 w-4 opacity-70" />}
+      <Icon className="h-5 w-5 shrink-0" />
+      {!collapsed && (
+        <>
+          {label}
+          {active && <ChevronRight className="ml-auto h-4 w-4 opacity-70" />}
+        </>
+      )}
     </Link>
   );
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    const stored = window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
+    if (stored === "1") setCollapsed(true);
+  }, []);
+
+  const toggleCollapsed = () => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, next ? "1" : "0");
+      return next;
+    });
+  };
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     router.navigate({ to: "/auth" });
   };
 
-  const SidebarContent = (
+  const SidebarContent = (collapsedView: boolean) => (
     <div className="flex h-full flex-col bg-sidebar">
-      <div className="flex h-16 items-center gap-2 border-b border-sidebar-border px-4">
-        <img src={uzzyLogo} alt="UZZY Ferramentas" className="h-8 w-auto" />
+      <div
+        className={cn(
+          "flex h-16 items-center gap-2 border-b border-sidebar-border px-4",
+          collapsedView && "justify-center px-2"
+        )}
+      >
+        {collapsedView ? (
+          <img src={uzzyLogo} alt="UZZY Ferramentas" className="h-7 w-auto" />
+        ) : (
+          <img src={uzzyLogo} alt="UZZY Ferramentas" className="h-8 w-auto" />
+        )}
         <span className="sr-only">UZZY Ferramentas</span>
       </div>
-
 
       <nav className="flex-1 space-y-1 p-3">
         {navItems.map((item) => (
@@ -84,20 +118,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             to={item.to}
             label={item.label}
             icon={item.icon}
+            collapsed={collapsedView}
             onClick={() => setOpen(false)}
           />
         ))}
       </nav>
 
       <div className="space-y-3 border-t border-border p-3">
-        <CatalogSyncStatus />
+        {!collapsedView && <CatalogSyncStatus />}
         <Button
           variant="ghost"
-          className="w-full justify-start text-muted-foreground hover:text-foreground"
+          title={collapsedView ? "Sair" : undefined}
+          className={cn(
+            "w-full text-muted-foreground hover:text-foreground",
+            collapsedView ? "justify-center px-2" : "justify-start"
+          )}
           onClick={handleSignOut}
         >
-          <LogOut className="mr-2 h-4 w-4" />
-          Sair
+          <LogOut className={cn("h-4 w-4", !collapsedView && "mr-2")} />
+          {!collapsedView && "Sair"}
         </Button>
       </div>
     </div>
@@ -106,8 +145,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen bg-background">
       {/* Desktop sidebar */}
-      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 border-r border-border lg:block">
-        {SidebarContent}
+      <aside
+        className={cn(
+          "sticky top-0 hidden h-screen shrink-0 border-r border-border transition-[width] duration-200 lg:block",
+          collapsed ? "w-16" : "w-64"
+        )}
+      >
+        <div className="relative h-full">
+          {SidebarContent(collapsed)}
+          <button
+            type="button"
+            onClick={toggleCollapsed}
+            title={collapsed ? "Expandir menu" : "Recolher menu"}
+            className="absolute -right-3 top-20 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm hover:text-foreground"
+          >
+            {collapsed ? (
+              <ChevronsRight className="h-3.5 w-3.5" />
+            ) : (
+              <ChevronsLeft className="h-3.5 w-3.5" />
+            )}
+          </button>
+        </div>
       </aside>
 
       {/* Mobile header + sheet */}
@@ -121,7 +179,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </Button>
           </SheetTrigger>
           <SheetContent side="left" className="w-64 p-0">
-            {SidebarContent}
+            {SidebarContent(false)}
           </SheetContent>
         </Sheet>
       </div>
