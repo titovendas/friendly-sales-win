@@ -43,7 +43,7 @@ function formatCnpj(doc?: string | null) {
 }
 
 export async function generateOrderPdf(order: any, items: any[]) {
-  const doc = new jsPDF({ unit: "pt", format: "a4" });
+  const doc = new jsPDF({ unit: "pt", format: "a4", orientation: "landscape" });
   const pageWidth = doc.internal.pageSize.getWidth();
 
   const logoData = await toDataUrl(logo);
@@ -91,29 +91,46 @@ export async function generateOrderPdf(order: any, items: any[]) {
   autoTable(doc, {
     startY: tableStartY,
     head: [
-      ["Foto", "Código", "Descrição", "Qtd", "Unitário", "IPI", "ST", "Total"],
+      [
+        "Foto",
+        "Código",
+        "Descrição",
+        "Qtd",
+        "Unitário",
+        "IPI",
+        "ST",
+        "Unit. c/ impostos",
+        "Total",
+      ],
     ],
-    body: items.map((item) => [
-      "",
-      item.code ?? "—",
-      item.description ?? "—",
-      String(item.quantity),
-      formatCurrency(item.unit_price),
-      `${formatCurrency(item.ipi_value)}\n(${item.ipi_percent}%)`,
-      `${formatCurrency(item.st_value)}\n(${item.st_percent}%)`,
-      formatCurrency(item.total),
-    ]),
+    body: items.map((item) => {
+      const unitWithTaxes =
+        Number(item.unit_price) *
+        (1 + (Number(item.ipi_percent) + Number(item.st_percent)) / 100);
+      return [
+        "",
+        item.code ?? "—",
+        item.description ?? "—",
+        String(item.quantity),
+        formatCurrency(item.unit_price),
+        `${formatCurrency(item.ipi_value)}\n(${item.ipi_percent}%)`,
+        `${formatCurrency(item.st_value)}\n(${item.st_percent}%)`,
+        formatCurrency(unitWithTaxes),
+        formatCurrency(item.total),
+      ];
+    }),
     styles: { fontSize: 8, cellPadding: 5, valign: "middle" },
     headStyles: { fillColor: [200, 30, 35], textColor: 255, halign: "center" },
     columnStyles: {
       0: { cellWidth: 38, minCellHeight: 38, halign: "center" },
-      1: { cellWidth: 46, halign: "left" },
+      1: { cellWidth: 50, halign: "left" },
       2: { halign: "left" },
-      3: { cellWidth: 30, halign: "right" },
-      4: { cellWidth: 60, halign: "right" },
-      5: { cellWidth: 68, halign: "right" },
-      6: { cellWidth: 68, halign: "right" },
-      7: { cellWidth: 62, halign: "right" },
+      3: { cellWidth: 32, halign: "right" },
+      4: { cellWidth: 65, halign: "right" },
+      5: { cellWidth: 70, halign: "right" },
+      6: { cellWidth: 70, halign: "right" },
+      7: { cellWidth: 75, halign: "right" },
+      8: { cellWidth: 68, halign: "right" },
     },
     didDrawCell: (data: any) => {
       if (data.section === "body" && data.column.index === 0) {
@@ -135,7 +152,7 @@ export async function generateOrderPdf(order: any, items: any[]) {
   const totalsRows: [string, number][] = [
     ["Subtotal", Number(order.subtotal ?? 0)],
     ["IPI", Number(order.ipi_total ?? 0)],
-    ["ST", Number(order.st_total ?? 0)],
+    ["ST (valor aprox.)", Number(order.st_total ?? 0)],
   ];
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
