@@ -238,6 +238,7 @@ export function OrderForm({
                 <TableHead className="w-32">Unitário</TableHead>
                 <TableHead className="w-28 text-right">IPI</TableHead>
                 <TableHead className="w-28 text-right">ST</TableHead>
+                <TableHead className="w-32 text-right">Unit. c/ impostos</TableHead>
                 <TableHead className="w-32 text-right">Total</TableHead>
                 <TableHead className="w-12"></TableHead>
               </TableRow>
@@ -311,6 +312,12 @@ export function OrderForm({
                         <span className="block text-xs text-muted-foreground">
                           {item.st_percent}%
                         </span>
+                      </TableCell>
+                      <TableCell className="text-right text-sm">
+                        {formatCurrency(
+                          item.unit_price *
+                            (1 + (item.ipi_percent + item.st_percent) / 100)
+                        )}
                       </TableCell>
                       <TableCell className="text-right font-medium">
                         {formatCurrency(base + ipi + st)}
@@ -418,7 +425,7 @@ export function OrderForm({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2 border-t pt-2 text-sm">
+                  <div className="grid grid-cols-2 gap-2 border-t pt-2 text-sm">
                     <div>
                       <p className="text-xs text-muted-foreground">
                         IPI ({item.ipi_percent}%)
@@ -430,6 +437,17 @@ export function OrderForm({
                         ST ({item.st_percent}%)
                       </p>
                       <p>{formatCurrency(st)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">
+                        Unit. c/ impostos
+                      </p>
+                      <p>
+                        {formatCurrency(
+                          item.unit_price *
+                            (1 + (item.ipi_percent + item.st_percent) / 100)
+                        )}
+                      </p>
                     </div>
                     <div className="text-right">
                       <p className="text-xs text-muted-foreground">Total</p>
@@ -455,7 +473,7 @@ export function OrderForm({
               <span>{formatCurrency(totals.ipi)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">ST</span>
+              <span className="text-muted-foreground">ST (valor aprox.)</span>
               <span>{formatCurrency(totals.st)}</span>
             </div>
             <div className="flex justify-between border-t pt-2 text-lg font-bold">
