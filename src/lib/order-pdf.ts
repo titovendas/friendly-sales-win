@@ -129,7 +129,7 @@ export async function generateOrderPdf(order: any, items: any[]) {
       4: { cellWidth: 65, halign: "right" },
       5: { cellWidth: 70, halign: "right" },
       6: { cellWidth: 70, halign: "right" },
-      7: { cellWidth: 75, halign: "right" },
+      7: { cellWidth: 75, halign: "right", fontStyle: "bold", textColor: [200, 30, 35] },
       8: { cellWidth: 68, halign: "right" },
     },
     didDrawCell: (data: any) => {
