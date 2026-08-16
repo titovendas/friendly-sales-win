@@ -1,9 +1,18 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Package, User, FileDown, Tag } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { ArrowLeft, Package, User, FileDown, Tag, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { ProductImage } from "@/components/products/product-image";
 import {
   Table,
   TableBody,
@@ -12,8 +21,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getOrder } from "@/lib/sales.functions";
-import { getOrderForDisplay } from "@/lib/offline-queue";
+import { getOrder, updateOrderStatus } from "@/lib/sales.functions";
+import { getOrderForDisplay, queueOrderUpsert } from "@/lib/offline-queue";
 import {
   formatCurrency,
   formatDate,
@@ -36,6 +45,10 @@ export const Route = createFileRoute("/_authenticated/pedidos_/$id")({
 
 function OrderDetailPage() {
   const { id } = Route.useParams();
+  const queryClient = useQueryClient();
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+
   const { data, isLoading } = useQuery({
     queryKey: ["order", id],
     queryFn: async () => {
@@ -54,6 +67,50 @@ function OrderDetailPage() {
   }
 
   const { order, items } = data;
+  const isConfirmed = order.status === "pedido";
+
+  const handleConfirmOrder = async () => {
+    setConfirming(true);
+    const isOnline = typeof navigator === "undefined" || navigator.onLine;
+    const isPending = id.startsWith("local-order-");
+    try {
+      if (isOnline && !isPending) {
+        await updateOrderStatus({ data: { id, status: "pedido" } });
+        toast.success("Orçamento confirmado como pedido!");
+      } else {
+        const orderPayload = {
+          customer_id: order.customer_id as string,
+          status: "pedido" as any,
+          price_table: (order as any).price_table,
+          payment_term: (order as any).payment_term,
+          items: items.map((item: any) => ({
+            catalog_product_id: item.catalog_product_id,
+            code: item.code,
+            description: item.description,
+            image_url: item.image_url,
+            quantity: item.quantity,
+            unit_price: Number(item.unit_price),
+            ipi_percent: Number(item.ipi_percent ?? 0),
+            st_percent: Number(item.st_percent ?? 0),
+          })),
+        };
+        await queueOrderUpsert(id, orderPayload, (order as any).customer ?? null);
+        toast.success(
+          isOnline
+            ? "Sem conexão com o servidor — confirmação salva no aparelho e será enviada automaticamente."
+            : "Você está offline — confirmação salva no aparelho e será enviada quando a internet voltar."
+        );
+      }
+      setConfirmOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["order", id] });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao confirmar pedido");
+    } finally {
+      setConfirming(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -66,7 +123,7 @@ function OrderDetailPage() {
           </Button>
           <div>
             <h1 className="text-3xl font-bold tracking-tight">
-              Pedido #{id.slice(0, 8)}
+              {isConfirmed ? "Pedido" : "Orçamento"} #{id.slice(0, 8)}
               {(order as any).__pending && (
                 <span className="ml-3 align-middle rounded bg-amber-100 px-2 py-1 text-xs font-normal text-amber-700">
                   aguardando sincronização
@@ -78,7 +135,7 @@ function OrderDetailPage() {
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button
             variant="outline"
             onClick={async () => {
@@ -91,11 +148,18 @@ function OrderDetailPage() {
           >
             <FileDown className="mr-2 h-4 w-4" /> Baixar PDF
           </Button>
-          <Button asChild>
-            <Link to="/pedidos/$id/editar" params={{ id }}>
-              Editar pedido
-            </Link>
-          </Button>
+          {!isConfirmed && (
+            <>
+              <Button asChild variant="outline">
+                <Link to="/pedidos/$id/editar" params={{ id }}>
+                  Editar orçamento
+                </Link>
+              </Button>
+              <Button onClick={() => setConfirmOpen(true)}>
+                <CheckCircle2 className="mr-2 h-4 w-4" /> Confirmar pedido
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -157,16 +221,11 @@ function OrderDetailPage() {
               {items.map((item: any) => (
                 <TableRow key={item.id}>
                   <TableCell>
-                    {item.image_url ? (
-                      <img
-                        src={item.image_url}
-                        alt={item.description ?? "Produto"}
-                        className="h-10 w-10 rounded border object-contain"
-                        loading="lazy"
-                      />
-                    ) : (
-                      "—"
-                    )}
+                    <ProductImage
+                      src={item.image_url}
+                      alt={item.description ?? "Produto"}
+                      className="h-10 w-10"
+                    />
                   </TableCell>
                   <TableCell className="font-mono text-xs">
                     {item.code || "—"}
@@ -220,6 +279,27 @@ function OrderDetailPage() {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar pedido</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Ao confirmar, este orçamento vira um pedido oficial e será
+            enviado para a empresa faturar. <strong>Não será mais possível
+            editar</strong> depois de confirmado.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleConfirmOrder} disabled={confirming}>
+              {confirming ? "Confirmando..." : "Confirmar pedido"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
     </div>
   );
