@@ -38,7 +38,6 @@ function NewOrderPage() {
   });
 
   const [customerId, setCustomerId] = useState("");
-  const [status, setStatus] = useState("pending");
   const [priceTable, setPriceTable] = useState<PriceTable>("varejo_10");
   const [paymentTerm, setPaymentTerm] = useState("");
   const [items, setItems] = useState<FormItem[]>([]);
@@ -57,7 +56,7 @@ function NewOrderPage() {
     setLoading(true);
     const orderPayload = {
       customer_id: customerId,
-      status: status as any,
+      status: "orcamento" as any,
       price_table: priceTable,
       payment_term: paymentTerm,
       items: items.map(({ prices, ...item }) => item),
@@ -99,9 +98,9 @@ function NewOrderPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Novo pedido</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Novo orçamento</h1>
         <p className="text-muted-foreground">
-          Selecione a tabela de preço e monte o pedido pelo catálogo.
+          Selecione a tabela de preço e monte o orçamento pelo catálogo.
         </p>
       </div>
 
@@ -110,8 +109,6 @@ function NewOrderPage() {
           customers={customers}
           customerId={customerId}
           setCustomerId={setCustomerId}
-          status={status}
-          setStatus={setStatus}
           priceTable={priceTable}
           setPriceTable={setPriceTable}
           paymentTerm={paymentTerm}
@@ -129,7 +126,7 @@ function NewOrderPage() {
             Cancelar
           </Button>
           <Button type="submit" disabled={loading}>
-            {loading ? "Salvando..." : "Salvar pedido"}
+            {loading ? "Salvando..." : "Salvar orçamento"}
           </Button>
         </div>
       </form>
