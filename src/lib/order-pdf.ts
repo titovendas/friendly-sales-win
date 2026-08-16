@@ -182,6 +182,7 @@ export async function generateOrderPdf(order: any, items: any[]) {
     40,
     footerY + 16
   );
+  doc.text("Frete: CIF", 40, footerY + 32);
 
   doc.save(`pedido-${String(order.id).slice(0, 8)}.pdf`);
 }
