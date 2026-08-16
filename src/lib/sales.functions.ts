@@ -2,14 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const orderStatusSchema = z.enum([
-  "pending",
-  "confirmed",
-  "paid",
-  "shipped",
-  "delivered",
-  "cancelled",
-]);
+const orderStatusSchema = z.enum(["orcamento", "pedido"]);
 
 export const priceTableSchema = z.enum(["atacado", "varejo_10", "varejo_75"]);
 
@@ -162,7 +155,7 @@ const orderSchema = z.object({
   id: optionalId,
   customer_id: z.string().uuid(),
   seller_id: optionalId,
-  status: orderStatusSchema.default("pending"),
+  status: orderStatusSchema.default("orcamento"),
   price_table: priceTableSchema.default("varejo_10"),
   payment_term: z.string().optional().or(z.literal("")),
   items: z.array(orderItemSchema).min(1),
