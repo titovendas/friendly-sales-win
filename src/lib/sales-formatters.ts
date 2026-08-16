@@ -17,12 +17,8 @@ export function formatDate(value: string | null | undefined) {
 
 export function statusLabel(status: string) {
   const labels: Record<string, string> = {
-    pending: "Pendente",
-    confirmed: "Confirmado",
-    paid: "Pago",
-    shipped: "Enviado",
-    delivered: "Entregue",
-    cancelled: "Cancelado",
+    orcamento: "Orçamento",
+    pedido: "Pedido",
   };
   return labels[status] ?? status;
 }
@@ -31,12 +27,8 @@ export function statusVariant(
   status: string
 ): "default" | "secondary" | "destructive" | "outline" | "success" | "warning" {
   const variants: Record<string, any> = {
-    pending: "warning",
-    confirmed: "secondary",
-    paid: "success",
-    shipped: "default",
-    delivered: "success",
-    cancelled: "destructive",
+    orcamento: "warning",
+    pedido: "success",
   };
   return variants[status] ?? "default";
 }
