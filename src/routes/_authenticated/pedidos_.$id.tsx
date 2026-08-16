@@ -250,7 +250,7 @@ function OrderDetailPage() {
                       {item.st_percent}%
                     </span>
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right font-bold text-primary">
                     {formatCurrency(
                       Number(item.unit_price) *
                         (1 +
