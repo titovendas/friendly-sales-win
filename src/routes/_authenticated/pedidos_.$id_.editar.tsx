@@ -1,6 +1,7 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
+import { Lock, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getOrder, upsertOrder } from "@/lib/sales.functions";
 import {
@@ -16,10 +17,10 @@ export const Route = createFileRoute("/_authenticated/pedidos_/$id_/editar")({
   component: EditOrderPage,
   head: ({ params }) => ({
     meta: [
-      { title: `Editar Pedido #${params.id.slice(0, 8)} | UZZY Ferramentas` },
-      { name: "description", content: "Edite o pedido de venda UZZY." },
-      { property: "og:title", content: "Editar Pedido | UZZY Ferramentas" },
-      { property: "og:description", content: "Edite o pedido de venda UZZY." },
+      { title: `Editar Orçamento #${params.id.slice(0, 8)} | UZZY Ferramentas` },
+      { name: "description", content: "Edite o orçamento UZZY." },
+      { property: "og:title", content: "Editar Orçamento | UZZY Ferramentas" },
+      { property: "og:description", content: "Edite o orçamento UZZY." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -44,7 +45,7 @@ function EditOrderPage() {
     queryFn: () => listCustomersMerged(),
   });
   const [customerId, setCustomerId] = useState("");
-  const [status, setStatus] = useState("pending");
+  const [originalStatus, setOriginalStatus] = useState("orcamento");
   const [priceTable, setPriceTable] = useState<PriceTable>("varejo_10");
   const [paymentTerm, setPaymentTerm] = useState("");
   const [items, setItems] = useState<FormItem[]>([]);
@@ -54,7 +55,7 @@ function EditOrderPage() {
     if (!orderData) return;
     const order: any = orderData.order;
     setCustomerId(order.customer_id || "");
-    setStatus(order.status || "pending");
+    setOriginalStatus(order.status || "orcamento");
     setPriceTable((order.price_table as PriceTable) || "varejo_10");
     setPaymentTerm(order.payment_term || "");
     setItems(
@@ -91,7 +92,7 @@ function EditOrderPage() {
     const isPending = id.startsWith("local-order-");
     const orderPayload = {
       customer_id: customerId,
-      status: status as any,
+      status: originalStatus as any,
       price_table: priceTable,
       payment_term: paymentTerm,
       items: items.map(({ prices, ...item }) => item),
@@ -107,7 +108,7 @@ function EditOrderPage() {
       if (isOnline && !isPending) {
         try {
           await upsertOrder({ data: { id, ...orderPayload } });
-          toast.success("Pedido atualizado com sucesso");
+          toast.success("Orçamento atualizado com sucesso");
         } catch (err: any) {
           await saveLocally();
           toast.success(
@@ -118,7 +119,7 @@ function EditOrderPage() {
         await saveLocally();
         toast.success(
           isOnline
-            ? "Pedido atualizado (ainda aguardando sincronização)"
+            ? "Orçamento atualizado (ainda aguardando sincronização)"
             : "Você está offline — edição salva no aparelho e será enviada quando a internet voltar."
         );
       }
@@ -127,7 +128,7 @@ function EditOrderPage() {
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
       navigate({ to: "/pedidos/$id", params: { id } });
     } catch (err: any) {
-      toast.error(err.message || "Erro ao atualizar pedido");
+      toast.error(err.message || "Erro ao atualizar orçamento");
     } finally {
       setLoading(false);
     }
@@ -141,11 +142,31 @@ function EditOrderPage() {
     );
   }
 
+  if (originalStatus === "pedido") {
+    return (
+      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 text-center">
+        <Lock className="h-10 w-10 text-muted-foreground" />
+        <div>
+          <p className="text-lg font-medium">Este pedido já foi confirmado</p>
+          <p className="text-muted-foreground">
+            Pedidos confirmados e enviados para faturamento não podem mais
+            ser editados.
+          </p>
+        </div>
+        <Button asChild variant="outline">
+          <Link to="/pedidos/$id" params={{ id }}>
+            <ArrowLeft className="mr-2 h-4 w-4" /> Voltar ao pedido
+          </Link>
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Editar pedido</h1>
-        <p className="text-muted-foreground">Atualize os dados do pedido.</p>
+        <h1 className="text-3xl font-bold tracking-tight">Editar orçamento</h1>
+        <p className="text-muted-foreground">Atualize os dados do orçamento.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -153,8 +174,6 @@ function EditOrderPage() {
           customers={customers}
           customerId={customerId}
           setCustomerId={setCustomerId}
-          status={status}
-          setStatus={setStatus}
           priceTable={priceTable}
           setPriceTable={setPriceTable}
           paymentTerm={paymentTerm}
@@ -167,12 +186,12 @@ function EditOrderPage() {
           <Button
             type="button"
             variant="outline"
-            onClick={() => navigate({ to: "/pedidos" })}
+            onClick={() => navigate({ to: "/pedidos/$id", params: { id } })}
           >
             Cancelar
           </Button>
           <Button type="submit" disabled={loading}>
-            {loading ? "Salvando..." : "Atualizar pedido"}
+            {loading ? "Salvando..." : "Atualizar orçamento"}
           </Button>
         </div>
       </form>
