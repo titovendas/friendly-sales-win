@@ -214,6 +214,7 @@ function OrderDetailPage() {
                 <TableHead className="text-right">Unitário</TableHead>
                 <TableHead className="text-right">IPI</TableHead>
                 <TableHead className="text-right">ST</TableHead>
+                <TableHead className="text-right">Unit. c/ impostos</TableHead>
                 <TableHead className="text-right">Total</TableHead>
               </TableRow>
             </TableHeader>
@@ -249,6 +250,14 @@ function OrderDetailPage() {
                       {item.st_percent}%
                     </span>
                   </TableCell>
+                  <TableCell className="text-right">
+                    {formatCurrency(
+                      Number(item.unit_price) *
+                        (1 +
+                          (Number(item.ipi_percent) + Number(item.st_percent)) /
+                            100)
+                    )}
+                  </TableCell>
                   <TableCell className="text-right font-medium">
                     {formatCurrency(item.total)}
                   </TableCell>
@@ -268,7 +277,7 @@ function OrderDetailPage() {
                 <span>{formatCurrency(order.ipi_total)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">ST</span>
+                <span className="text-muted-foreground">ST (valor aprox.)</span>
                 <span>{formatCurrency(order.st_total)}</span>
               </div>
               <div className="flex justify-between border-t pt-2 text-lg font-bold">
