@@ -32,6 +32,19 @@ import { formatCurrency } from "@/lib/sales-formatters";
 import { PRICE_TABLES, catalogPrice, type PriceTable } from "@/lib/price-tables";
 import { getPaymentTermsOfflineAware } from "@/lib/offline-customers";
 
+/** Mostra sempre com 2 casas decimais e vírgula (padrão BR), ex: 4,80. */
+function formatDecimalInput(value: number) {
+  if (Number.isNaN(value)) return "0,00";
+  return value.toFixed(2).replace(".", ",");
+}
+
+/** Converte o texto digitado (aceita vírgula ou ponto) de volta em número. */
+function parseDecimalInput(text: string) {
+  const normalized = text.replace(/[^\d,.-]/g, "").replace(",", ".");
+  const value = parseFloat(normalized);
+  return Number.isNaN(value) ? 0 : value;
+}
+
 export type FormItem = {
   catalog_product_id: string;
   code: string;
@@ -228,14 +241,14 @@ export function OrderForm({
         </div>
 
         <div className="hidden overflow-x-auto sm:block">
-          <Table>
+          <Table className="table-fixed">
             <TableHeader>
               <TableRow>
                 <TableHead className="w-16">Foto</TableHead>
                 <TableHead className="w-24">Código</TableHead>
-                <TableHead>Descrição</TableHead>
+                <TableHead className="w-auto min-w-[160px]">Descrição</TableHead>
                 <TableHead className="w-20">Qtd</TableHead>
-                <TableHead className="w-32">Unitário</TableHead>
+                <TableHead className="w-28">Unitário</TableHead>
                 <TableHead className="w-28 text-right">IPI</TableHead>
                 <TableHead className="w-28 text-right">ST</TableHead>
                 <TableHead className="w-32 text-right">Unit. c/ impostos</TableHead>
@@ -282,19 +295,19 @@ export function OrderForm({
                               )
                             )
                           }
+                          className="[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                         />
                       </TableCell>
                       <TableCell>
                         <Input
-                          type="number"
-                          min={0}
-                          step="0.01"
-                          value={item.unit_price}
+                          type="text"
+                          inputMode="decimal"
+                          value={formatDecimalInput(item.unit_price)}
                           onChange={(e) =>
                             setItems((prev) =>
                               prev.map((i, idx) =>
                                 idx === index
-                                  ? { ...i, unit_price: parseFloat(e.target.value) || 0 }
+                                  ? { ...i, unit_price: parseDecimalInput(e.target.value) }
                                   : i
                               )
                             )
@@ -313,7 +326,7 @@ export function OrderForm({
                           {item.st_percent}%
                         </span>
                       </TableCell>
-                      <TableCell className="text-right text-sm">
+                      <TableCell className="text-right text-sm font-bold text-primary">
                         {formatCurrency(
                           item.unit_price *
                             (1 + (item.ipi_percent + item.st_percent) / 100)
@@ -401,6 +414,7 @@ export function OrderForm({
                             )
                           )
                         }
+                        className="[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                       />
                     </div>
                     <div className="grid gap-1">
@@ -408,15 +422,14 @@ export function OrderForm({
                         Unitário
                       </Label>
                       <Input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        value={item.unit_price}
+                        type="text"
+                        inputMode="decimal"
+                        value={formatDecimalInput(item.unit_price)}
                         onChange={(e) =>
                           setItems((prev) =>
                             prev.map((i, idx) =>
                               idx === index
-                                ? { ...i, unit_price: parseFloat(e.target.value) || 0 }
+                                ? { ...i, unit_price: parseDecimalInput(e.target.value) }
                                 : i
                             )
                           )
@@ -442,7 +455,7 @@ export function OrderForm({
                       <p className="text-xs text-muted-foreground">
                         Unit. c/ impostos
                       </p>
-                      <p>
+                      <p className="font-bold text-primary">
                         {formatCurrency(
                           item.unit_price *
                             (1 + (item.ipi_percent + item.st_percent) / 100)
