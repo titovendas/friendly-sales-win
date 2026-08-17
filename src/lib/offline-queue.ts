@@ -462,14 +462,16 @@ export async function syncPendingData(): Promise<{
   syncedCustomers: number;
   syncedOrders: number;
   failed: number;
+  errors: string[];
 }> {
   if (!isOnlineNow()) {
-    return { syncedCustomers: 0, syncedOrders: 0, failed: 0 };
+    return { syncedCustomers: 0, syncedOrders: 0, failed: 0, errors: [] };
   }
 
   let syncedCustomers = 0;
   let syncedOrders = 0;
   let failed = 0;
+  const errors: string[] = [];
 
   const idMap = new Map<string, string>();
   const pendingCustomerOps = await getPendingCustomerOps();
@@ -478,7 +480,14 @@ export async function syncPendingData(): Promise<{
     try {
       if (op.type === "create") {
         const result = await upsertCustomer({ data: op.payload });
-        if (result?.id) idMap.set(op.localId, result.id);
+        if (result?.id) {
+          idMap.set(op.localId, result.id);
+          // Grava o id real já nos pedidos pendentes que apontam pra esse
+          // cliente local, para não ficarem órfãos caso falhem agora e só
+          // sejam tentados de novo numa sincronização futura (quando esse
+          // mapeamento em memória já não existiria mais).
+          await remapCustomerIdInPendingOrders(op.localId, result.id);
+        }
         await removeCustomerOp(op);
         syncedCustomers++;
       } else if (op.type === "update") {
@@ -490,12 +499,15 @@ export async function syncPendingData(): Promise<{
         await removeCustomerOp(op);
         syncedCustomers++;
       }
-    } catch {
+    } catch (err: any) {
       failed++;
+      errors.push(err?.message || "Erro ao sincronizar cliente");
     }
   }
 
   const pendingOrderOps = await getPendingOrderOps();
+  let allCustomersCache: any[] | null = null;
+
   for (const op of pendingOrderOps) {
     try {
       if (op.type === "delete") {
@@ -507,9 +519,33 @@ export async function syncPendingData(): Promise<{
 
       let customerId = op.payload.customer_id;
       if (customerId?.startsWith("local-cust-")) {
-        const realId = idMap.get(customerId);
+        let realId = idMap.get(customerId);
+
+        // Cliente local que não estava (mais) na fila desta vez — provável
+        // caso de já ter sincronizado numa tentativa anterior, deixando
+        // esse pedido "órfão". Tenta recuperar procurando o cliente já
+        // sincronizado pelo CNPJ ou nome salvos no momento da criação.
+        if (!realId && op.customerSnapshot) {
+          if (allCustomersCache === null) {
+            allCustomersCache = await listCustomers().catch(() => []);
+          }
+          const snapshot = op.customerSnapshot;
+          const match = allCustomersCache.find((c: any) =>
+            snapshot.document
+              ? c.document && c.document === snapshot.document
+              : c.name === snapshot.name
+          );
+          if (match?.id) {
+            realId = match.id as string;
+            idMap.set(customerId, realId);
+          }
+        }
+
         if (!realId) {
           failed++;
+          errors.push(
+            `Pedido de "${op.customerSnapshot?.name ?? "cliente"}" aguardando o cliente sincronizar primeiro.`
+          );
           continue;
         }
         customerId = realId;
@@ -524,8 +560,9 @@ export async function syncPendingData(): Promise<{
       }
       await removeOrderOp(op);
       syncedOrders++;
-    } catch {
+    } catch (err: any) {
       failed++;
+      errors.push(err?.message || "Erro ao sincronizar pedido");
     }
   }
 
@@ -533,7 +570,17 @@ export async function syncPendingData(): Promise<{
     syncCustomers().catch(() => {});
   }
 
-  return { syncedCustomers, syncedOrders, failed };
+  return { syncedCustomers, syncedOrders, failed, errors };
+}
+
+async function remapCustomerIdInPendingOrders(localId: string, realId: string) {
+  const pending = await getPendingOrderOps();
+  const next = pending.map((op): PendingOrderOp => {
+    if (op.type === "delete") return op;
+    if (op.payload.customer_id !== localId) return op;
+    return { ...op, payload: { ...op.payload, customer_id: realId } };
+  });
+  await set(PENDING_ORDERS_KEY, next);
 }
 
 async function removeCustomerOp(target: PendingCustomerOp) {
