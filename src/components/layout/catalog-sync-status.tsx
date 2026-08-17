@@ -7,6 +7,7 @@ import {
   getOfflineCatalogCount,
 } from "@/lib/offline-catalog";
 import { syncPendingData, pendingCount } from "@/lib/offline-queue";
+import { toast } from "sonner";
 
 function formatSyncedAt(iso: string | null) {
   if (!iso) return "nunca sincronizado";
@@ -54,10 +55,21 @@ export function CatalogSyncStatus() {
     setSyncing(true);
     try {
       await syncCatalog();
-      await syncPendingData();
+      const result = await syncPendingData();
       await refreshStatus();
+      if (result.syncedCustomers + result.syncedOrders > 0) {
+        toast.success(
+          `Sincronizado: ${result.syncedCustomers} cliente(s), ${result.syncedOrders} pedido(s).`
+        );
+      }
+      if (result.failed > 0) {
+        toast.error(
+          result.errors[0] ||
+            `${result.failed} item(ns) não sincronizaram. Tentaremos de novo automaticamente.`
+        );
+      }
     } catch {
-      /* sem internet ou erro momentâneo */
+      toast.error("Não foi possível sincronizar agora. Verifique a conexão.");
     } finally {
       setSyncing(false);
     }
