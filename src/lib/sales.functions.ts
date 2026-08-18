@@ -709,6 +709,28 @@ export const listCatalogAll = createServerFn({ method: "GET" })
     return all;
   });
 
+/**
+ * Busca o registro completo do catálogo (preços das 3 tabelas, IPI, ST)
+ * para uma lista de produtos, por id. Usado ao abrir um pedido para editar,
+ * para recalcular corretamente o preço de cada item se o usuário trocar a
+ * tabela de preço.
+ */
+export const getCatalogProductsByIds = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) =>
+    z.object({ ids: z.array(z.string().uuid()) }).parse(data)
+  )
+  .handler(async ({ context, data }) => {
+    const { supabase } = context;
+    if (data.ids.length === 0) return [];
+    const { data: rows, error } = await supabase
+      .from("catalog_products")
+      .select("*")
+      .in("id", data.ids);
+    if (error) throw new Error(error.message);
+    return rows ?? [];
+  });
+
 export const updateOrderStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) =>
