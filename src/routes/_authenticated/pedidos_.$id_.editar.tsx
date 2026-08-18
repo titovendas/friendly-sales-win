@@ -9,6 +9,7 @@ import {
   getOrderForDisplay,
   queueOrderUpsert,
 } from "@/lib/offline-queue";
+import { getCatalogProductsByIdsOfflineAware } from "@/lib/offline-catalog";
 import { OrderForm, type FormItem } from "@/components/orders/order-form";
 import type { PriceTable } from "@/lib/price-tables";
 import { toast } from "sonner";
@@ -58,8 +59,10 @@ function EditOrderPage() {
     setOriginalStatus(order.status || "orcamento");
     setPriceTable((order.price_table as PriceTable) || "varejo_10");
     setPaymentTerm(order.payment_term || "");
+
+    const rawItems = orderData.items;
     setItems(
-      orderData.items.map((item: any) => ({
+      rawItems.map((item: any) => ({
         catalog_product_id: item.catalog_product_id,
         code: item.code ?? "",
         description: item.description ?? "",
@@ -68,6 +71,8 @@ function EditOrderPage() {
         unit_price: Number(item.unit_price),
         ipi_percent: Number(item.ipi_percent ?? 0),
         st_percent: Number(item.st_percent ?? 0),
+        // Provisório: até os preços reais do catálogo chegarem (abaixo),
+        // evita que a tabela de preço pareça não fazer nada por um instante.
         prices: {
           atacado: Number(item.unit_price),
           varejo_10: Number(item.unit_price),
@@ -75,6 +80,31 @@ function EditOrderPage() {
         },
       }))
     );
+
+    // Busca os preços reais das 3 tabelas no catálogo, para que trocar a
+    // tabela de preço recalcule corretamente também os itens que já
+    // estavam no orçamento (e não só os adicionados depois).
+    const ids = rawItems
+      .map((item: any) => item.catalog_product_id)
+      .filter(Boolean);
+    if (ids.length > 0) {
+      getCatalogProductsByIdsOfflineAware(ids).then((catalogMap) => {
+        setItems((prev) =>
+          prev.map((item) => {
+            const product = catalogMap.get(item.catalog_product_id);
+            if (!product) return item;
+            return {
+              ...item,
+              prices: {
+                atacado: Number(product.price_atacado ?? item.unit_price),
+                varejo_10: Number(product.price_varejo_10 ?? item.unit_price),
+                varejo_75: Number(product.price_varejo_75 ?? item.unit_price),
+              },
+            };
+          })
+        );
+      });
+    }
   }, [orderData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
