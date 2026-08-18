@@ -1,5 +1,9 @@
 import { get, set, del } from "idb-keyval";
-import { listCatalog, listCatalogAll } from "@/lib/sales.functions";
+import {
+  listCatalog,
+  listCatalogAll,
+  getCatalogProductsByIds,
+} from "@/lib/sales.functions";
 
 const CATALOG_KEY = "fv:catalog:v1";
 const SYNCED_AT_KEY = "fv:catalog:syncedAt";
@@ -124,4 +128,38 @@ export async function searchCatalog(search: string): Promise<{
     ? sortByRelevance(cached.filter((item) => matchesSearch(item, term)), term)
     : cached.slice(0, 60);
   return { items: filtered, fromCache: true };
+}
+
+/**
+ * Busca os dados completos do catálogo (preços das 3 tabelas, IPI, ST)
+ * para uma lista de ids de produto. Tenta o servidor; se offline ou a
+ * chamada falhar, usa a cópia local do catálogo salva no aparelho.
+ */
+export async function getCatalogProductsByIdsOfflineAware(
+  ids: string[]
+): Promise<Map<string, CatalogItem>> {
+  const uniqueIds = Array.from(new Set(ids)).filter(Boolean);
+  const map = new Map<string, CatalogItem>();
+  if (uniqueIds.length === 0) return map;
+
+  const isOnline = typeof navigator === "undefined" || navigator.onLine;
+  if (isOnline) {
+    try {
+      const rows = (await getCatalogProductsByIds({
+        data: { ids: uniqueIds },
+      })) as CatalogItem[];
+      rows.forEach((row) => map.set(row.id, row));
+      if (map.size === uniqueIds.length) return map;
+    } catch {
+      // segue para o fallback local abaixo
+    }
+  }
+
+  const cached = (await get<CatalogItem[]>(CATALOG_KEY)) ?? [];
+  for (const item of cached) {
+    if (uniqueIds.includes(item.id) && !map.has(item.id)) {
+      map.set(item.id, item);
+    }
+  }
+  return map;
 }
