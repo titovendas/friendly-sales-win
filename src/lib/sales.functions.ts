@@ -653,8 +653,36 @@ export const listCatalog = createServerFn({ method: "GET" })
     }
     const { data: rows, error } = await query;
     if (error) throw new Error(error.message);
-    return rows ?? [];
+    return term ? sortCatalogByRelevance(rows ?? [], term) : rows ?? [];
   });
+
+/**
+ * Reordena os resultados da busca priorizando quem bate exatamente com o
+ * termo digitado (ex: buscar "2088" mostra primeiro o produto de código
+ * 2088, em vez de ordenar tudo apenas alfabeticamente).
+ */
+function sortCatalogByRelevance(rows: any[], term: string) {
+  const t = term.trim().toLowerCase();
+  const score = (row: any) => {
+    const code = String(row.code ?? "").toLowerCase();
+    const ref = String(row.ref ?? "").toLowerCase();
+    const description = String(row.description ?? "").toLowerCase();
+    const barcode = String(row.barcode ?? "").toLowerCase();
+    if (code === t || barcode === t) return 0;
+    if (code.startsWith(t)) return 1;
+    if (ref === t) return 2;
+    if (ref.startsWith(t)) return 3;
+    if (code.includes(t) || barcode.includes(t)) return 4;
+    if (ref.includes(t)) return 5;
+    if (description.startsWith(t)) return 6;
+    return 7; // description.includes(t) ou outro campo
+  };
+  return [...rows].sort((a, b) => {
+    const diff = score(a) - score(b);
+    if (diff !== 0) return diff;
+    return String(a.code ?? "").localeCompare(String(b.code ?? ""));
+  });
+}
 
 // Retorna o catálogo completo (sem limite), usado para sincronizar a
 // cópia local que permite consultar preços e montar pedidos offline.
