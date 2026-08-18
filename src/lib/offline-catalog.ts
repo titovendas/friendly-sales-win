@@ -72,6 +72,33 @@ function matchesSearch(item: CatalogItem, term: string) {
 }
 
 /**
+ * Prioriza quem bate exatamente com o termo digitado (mesmo critério usado
+ * na busca online), em vez de só filtrar mantendo a ordem alfabética.
+ */
+function sortByRelevance(items: CatalogItem[], term: string) {
+  const t = term.trim().toLowerCase();
+  const score = (item: CatalogItem) => {
+    const code = (item.code ?? "").toLowerCase();
+    const ref = (item.ref ?? "").toLowerCase();
+    const description = (item.description ?? "").toLowerCase();
+    const barcode = (item.barcode ?? "").toLowerCase();
+    if (code === t || barcode === t) return 0;
+    if (code.startsWith(t)) return 1;
+    if (ref === t) return 2;
+    if (ref.startsWith(t)) return 3;
+    if (code.includes(t) || barcode.includes(t)) return 4;
+    if (ref.includes(t)) return 5;
+    if (description.startsWith(t)) return 6;
+    return 7;
+  };
+  return [...items].sort((a, b) => {
+    const diff = score(a) - score(b);
+    if (diff !== 0) return diff;
+    return (a.code ?? "").localeCompare(b.code ?? "");
+  });
+}
+
+/**
  * Busca produtos no catálogo. Tenta o servidor primeiro (dados sempre
  * atualizados); se estiver offline ou a chamada falhar, cai para a cópia
  * local salva no aparelho. Também mantém a cópia local sempre em dia
@@ -94,7 +121,7 @@ export async function searchCatalog(search: string): Promise<{
   const cached = (await get<CatalogItem[]>(CATALOG_KEY)) ?? [];
   const term = search.trim();
   const filtered = term
-    ? cached.filter((item) => matchesSearch(item, term))
+    ? sortByRelevance(cached.filter((item) => matchesSearch(item, term)), term)
     : cached.slice(0, 60);
   return { items: filtered, fromCache: true };
 }
