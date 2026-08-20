@@ -133,14 +133,9 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   useEffect(() => {
-    if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
-      return;
-    }
-    navigator.serviceWorker.register("/sw.js").catch(() => {
-      /* navegador sem suporte ou erro momentâneo — app segue funcionando
-         normalmente, só não terá cache offline do app shell */
-    });
+    registerAppServiceWorker();
   }, []);
+
 
   return (
     <QueryClientProvider client={queryClient}>
