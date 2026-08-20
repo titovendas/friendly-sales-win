@@ -110,6 +110,8 @@ export function CatalogSyncStatus() {
         <RefreshCw className={`mr-1.5 h-3 w-3 ${syncing ? "animate-spin" : ""}`} />
         {syncing ? "Sincronizando..." : "Sincronizar agora"}
       </Button>
+      <InstallAppButton />
     </div>
   );
 }
+
