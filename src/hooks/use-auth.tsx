@@ -9,12 +9,31 @@ export function useAuth() {
   useEffect(() => {
     let mounted = true;
 
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (mounted) {
-        setUser(user);
+    // getSession() lê a sessão salva localmente (funciona offline). Usamos
+    // ela primeiro para não travar o app sem internet; getUser() (que
+    // revalida no servidor) só é chamado depois, em segundo plano, quando
+    // há conexão — sem bloquear a navegação se falhar.
+    supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => {
+        if (!mounted) return;
+        setUser(session?.user ?? null);
         setLoading(false);
-      }
-    });
+      })
+      .catch(() => {
+        if (mounted) setLoading(false);
+      });
+
+    if (typeof navigator === "undefined" || navigator.onLine) {
+      supabase.auth
+        .getUser()
+        .then(({ data: { user: revalidated } }) => {
+          if (mounted && revalidated) setUser(revalidated);
+        })
+        .catch(() => {
+          /* sem internet ou erro momentâneo — mantém a sessão local */
+        });
+    }
 
     const {
       data: { subscription },
