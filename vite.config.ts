@@ -24,8 +24,21 @@ export default defineConfig({
         workbox: {
           globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2}"],
           maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
-          navigateFallback: "/",
-          navigateFallbackDenylist: [/^\/~oauth/, /^\/api\//, /^\/_serverFn\//],
+          // O build gera os arquivos do navegador em dist/client, mas eles são
+          // servidos a partir da raiz — sem isso o cache aponta para /client/...
+          // e nada é encontrado quando o app abre sem internet.
+          manifestTransforms: [
+            (entries: { url: string }[]) => ({
+              manifest: entries.map((entry) => ({
+                ...entry,
+                url: entry.url.replace(/^client\//, ""),
+              })),
+              warnings: [],
+            }),
+          ],
+          // Sem HTML estático para usar como fallback: as páginas visitadas
+          // ficam guardadas pelo NetworkFirst abaixo.
+          navigateFallback: undefined,
           cleanupOutdatedCaches: true,
           clientsClaim: true,
           skipWaiting: true,
