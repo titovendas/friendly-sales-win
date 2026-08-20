@@ -17,6 +17,7 @@ import { Route as AuthenticatedConfiguracoesRouteImport } from './routes/_authen
 import { Route as AuthenticatedPedidosRouteImport } from './routes/_authenticated/pedidos'
 import { Route as AuthenticatedProdutosRouteImport } from './routes/_authenticated/produtos'
 import { Route as AuthenticatedVendedoresRouteImport } from './routes/_authenticated/vendedores'
+import { Route as AuthenticatedConfiguracoesPrazosPagamentoRouteImport } from './routes/_authenticated/configuracoes_.prazos-pagamento'
 import { Route as AuthenticatedPedidosIdRouteImport } from './routes/_authenticated/pedidos_.$id'
 import { Route as AuthenticatedPedidosNovoRouteImport } from './routes/_authenticated/pedidos_.novo'
 import { Route as AuthenticatedPedidosIdEditarRouteImport } from './routes/_authenticated/pedidos_.$id_.editar'
@@ -61,6 +62,12 @@ const AuthenticatedVendedoresRoute = AuthenticatedVendedoresRouteImport.update({
   path: '/vendedores',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedConfiguracoesPrazosPagamentoRoute =
+  AuthenticatedConfiguracoesPrazosPagamentoRouteImport.update({
+    id: '/configuracoes_/prazos-pagamento',
+    path: '/configuracoes/prazos-pagamento',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedPedidosIdRoute = AuthenticatedPedidosIdRouteImport.update({
   id: '/pedidos_/$id',
   path: '/pedidos/$id',
@@ -87,6 +94,7 @@ export interface FileRoutesByFullPath {
   '/pedidos': typeof AuthenticatedPedidosRoute
   '/produtos': typeof AuthenticatedProdutosRoute
   '/vendedores': typeof AuthenticatedVendedoresRoute
+  '/configuracoes/prazos-pagamento': typeof AuthenticatedConfiguracoesPrazosPagamentoRoute
   '/pedidos/$id': typeof AuthenticatedPedidosIdRoute
   '/pedidos/novo': typeof AuthenticatedPedidosNovoRoute
   '/pedidos/$id/editar': typeof AuthenticatedPedidosIdEditarRoute
@@ -99,6 +107,7 @@ export interface FileRoutesByTo {
   '/produtos': typeof AuthenticatedProdutosRoute
   '/vendedores': typeof AuthenticatedVendedoresRoute
   '/': typeof AuthenticatedIndexRoute
+  '/configuracoes/prazos-pagamento': typeof AuthenticatedConfiguracoesPrazosPagamentoRoute
   '/pedidos/$id': typeof AuthenticatedPedidosIdRoute
   '/pedidos/novo': typeof AuthenticatedPedidosNovoRoute
   '/pedidos/$id/editar': typeof AuthenticatedPedidosIdEditarRoute
@@ -113,6 +122,7 @@ export interface FileRoutesById {
   '/_authenticated/produtos': typeof AuthenticatedProdutosRoute
   '/_authenticated/vendedores': typeof AuthenticatedVendedoresRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/_authenticated/configuracoes_/prazos-pagamento': typeof AuthenticatedConfiguracoesPrazosPagamentoRoute
   '/_authenticated/pedidos_/$id': typeof AuthenticatedPedidosIdRoute
   '/_authenticated/pedidos_/novo': typeof AuthenticatedPedidosNovoRoute
   '/_authenticated/pedidos_/$id_/editar': typeof AuthenticatedPedidosIdEditarRoute
@@ -127,6 +137,7 @@ export interface FileRouteTypes {
     | '/pedidos'
     | '/produtos'
     | '/vendedores'
+    | '/configuracoes/prazos-pagamento'
     | '/pedidos/$id'
     | '/pedidos/novo'
     | '/pedidos/$id/editar'
@@ -139,6 +150,7 @@ export interface FileRouteTypes {
     | '/produtos'
     | '/vendedores'
     | '/'
+    | '/configuracoes/prazos-pagamento'
     | '/pedidos/$id'
     | '/pedidos/novo'
     | '/pedidos/$id/editar'
@@ -152,6 +164,7 @@ export interface FileRouteTypes {
     | '/_authenticated/produtos'
     | '/_authenticated/vendedores'
     | '/_authenticated/'
+    | '/_authenticated/configuracoes_/prazos-pagamento'
     | '/_authenticated/pedidos_/$id'
     | '/_authenticated/pedidos_/novo'
     | '/_authenticated/pedidos_/$id_/editar'
@@ -220,6 +233,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedVendedoresRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/configuracoes_/prazos-pagamento': {
+      id: '/_authenticated/configuracoes_/prazos-pagamento'
+      path: '/configuracoes/prazos-pagamento'
+      fullPath: '/configuracoes/prazos-pagamento'
+      preLoaderRoute: typeof AuthenticatedConfiguracoesPrazosPagamentoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/pedidos_/$id': {
       id: '/_authenticated/pedidos_/$id'
       path: '/pedidos/$id'
@@ -251,6 +271,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedProdutosRoute: typeof AuthenticatedProdutosRoute
   AuthenticatedVendedoresRoute: typeof AuthenticatedVendedoresRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedConfiguracoesPrazosPagamentoRoute: typeof AuthenticatedConfiguracoesPrazosPagamentoRoute
   AuthenticatedPedidosIdRoute: typeof AuthenticatedPedidosIdRoute
   AuthenticatedPedidosNovoRoute: typeof AuthenticatedPedidosNovoRoute
   AuthenticatedPedidosIdEditarRoute: typeof AuthenticatedPedidosIdEditarRoute
@@ -263,6 +284,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedProdutosRoute: AuthenticatedProdutosRoute,
   AuthenticatedVendedoresRoute: AuthenticatedVendedoresRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedConfiguracoesPrazosPagamentoRoute:
+    AuthenticatedConfiguracoesPrazosPagamentoRoute,
   AuthenticatedPedidosIdRoute: AuthenticatedPedidosIdRoute,
   AuthenticatedPedidosNovoRoute: AuthenticatedPedidosNovoRoute,
   AuthenticatedPedidosIdEditarRoute: AuthenticatedPedidosIdEditarRoute,

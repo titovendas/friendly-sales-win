@@ -8,6 +8,8 @@ import {
 } from "@/lib/offline-catalog";
 import { syncPendingData, pendingCount } from "@/lib/offline-queue";
 import { toast } from "sonner";
+import { InstallAppButton } from "@/components/layout/install-app-button";
+
 
 function formatSyncedAt(iso: string | null) {
   if (!iso) return "nunca sincronizado";
@@ -110,6 +112,8 @@ export function CatalogSyncStatus() {
         <RefreshCw className={`mr-1.5 h-3 w-3 ${syncing ? "animate-spin" : ""}`} />
         {syncing ? "Sincronizando..." : "Sincronizar agora"}
       </Button>
+      <InstallAppButton />
     </div>
   );
 }
+

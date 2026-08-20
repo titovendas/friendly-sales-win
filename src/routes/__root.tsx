@@ -12,6 +12,8 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
+import { registerAppServiceWorker } from "@/lib/pwa";
+
 
 function NotFoundComponent() {
   return (
@@ -133,14 +135,9 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   useEffect(() => {
-    if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
-      return;
-    }
-    navigator.serviceWorker.register("/sw.js").catch(() => {
-      /* navegador sem suporte ou erro momentâneo — app segue funcionando
-         normalmente, só não terá cache offline do app shell */
-    });
+    registerAppServiceWorker();
   }, []);
+
 
   return (
     <QueryClientProvider client={queryClient}>
