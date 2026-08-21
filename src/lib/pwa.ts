@@ -48,7 +48,31 @@ export function registerAppServiceWorker() {
     return;
   }
 
-  navigator.serviceWorker.register("/sw.js").catch(() => {
-    /* sem suporte ou erro momentâneo — o app continua funcionando */
+  navigator.serviceWorker
+    .register("/sw.js")
+    .then(() => warmUpRoutes())
+    .catch(() => {
+      /* sem suporte ou erro momentâneo — o app continua funcionando */
+    });
+}
+
+// Rotas principais são baixadas em segundo plano enquanto há internet, para
+// que possam ser abertas depois mesmo totalmente offline.
+const ROUTES_TO_WARM = [
+  "/",
+  "/auth",
+  "/clientes",
+  "/produtos",
+  "/pedidos",
+  "/pedidos/novo",
+  "/vendedores",
+  "/configuracoes",
+];
+
+function warmUpRoutes() {
+  if (!navigator.onLine) return;
+  ROUTES_TO_WARM.forEach((route) => {
+    fetch(route, { credentials: "same-origin" }).catch(() => {});
   });
 }
+
