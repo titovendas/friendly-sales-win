@@ -34,7 +34,7 @@ export default defineConfig({
                 url: entry.url.replace(/^client\//, ""),
               })),
               warnings: [],
-            }),
+            })) as any,
           ],
           // A home é pré-baixada na instalação e serve de "casca" do app
           // quando o usuário abre uma URL que ainda não foi visitada offline.
