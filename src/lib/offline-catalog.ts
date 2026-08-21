@@ -55,6 +55,54 @@ export async function getCatalogSyncedAt(): Promise<string | null> {
   return (await get(SYNCED_AT_KEY)) ?? null;
 }
 
+const IMAGE_CACHE_NAME = "fv-images-v1";
+
+/**
+ * Baixa as fotos de todos os produtos do catálogo local e guarda no mesmo
+ * "cofre" de imagens que o service worker usa, para ficarem disponíveis
+ * offline mesmo sem o vendedor ter visto o produto antes. Roda aos poucos
+ * (em lotes), e chama onProgress a cada lote para atualizar algum
+ * indicador na tela, se quiser.
+ */
+export async function prefetchAllProductImages(
+  onProgress?: (done: number, total: number) => void
+): Promise<{ downloaded: number; total: number }> {
+  if (typeof caches === "undefined") return { downloaded: 0, total: 0 };
+
+  const items = (await get<CatalogItem[]>(CATALOG_KEY)) ?? [];
+  const urls = Array.from(
+    new Set(items.map((i) => i.image_url).filter((u): u is string => !!u))
+  );
+  if (urls.length === 0) return { downloaded: 0, total: 0 };
+
+  const cache = await caches.open(IMAGE_CACHE_NAME);
+  const BATCH_SIZE = 8;
+  let done = 0;
+
+  for (let i = 0; i < urls.length; i += BATCH_SIZE) {
+    if (typeof navigator !== "undefined" && navigator.onLine === false) break;
+    const batch = urls.slice(i, i + BATCH_SIZE);
+    await Promise.all(
+      batch.map(async (url) => {
+        try {
+          const existing = await cache.match(url);
+          if (!existing) {
+            const res = await fetch(url);
+            if (res.ok) await cache.put(url, res.clone());
+          }
+        } catch {
+          /* imagem específica falhou — segue para as próximas */
+        } finally {
+          done++;
+        }
+      })
+    );
+    onProgress?.(done, urls.length);
+  }
+
+  return { downloaded: done, total: urls.length };
+}
+
 export async function getOfflineCatalogCount(): Promise<number> {
   const rows = (await get<CatalogItem[]>(CATALOG_KEY)) ?? [];
   return rows.length;
