@@ -1,5 +1,5 @@
-
 import { useState } from "react";
+import { ImageOff } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
@@ -11,13 +11,23 @@ type ProductImageProps = {
 
 /** Miniatura de produto clicável: ao tocar, abre a imagem ampliada em um
  * pop-up, útil para o vendedor confirmar o produto com o cliente na hora
- * da venda. */
+ * da venda. Se a foto não carregar (ex: offline e ainda não baixada),
+ * mostra um ícone no lugar em vez do quadrado quebrado do navegador. */
 export function ProductImage({ src, alt, className }: ProductImageProps) {
   const [open, setOpen] = useState(false);
+  const [failed, setFailed] = useState(false);
 
-  if (!src) {
+  if (!src || failed) {
     return (
-      <div className={cn("rounded border bg-muted", className)} />
+      <div
+        className={cn(
+          "flex items-center justify-center rounded border bg-muted text-muted-foreground",
+          className
+        )}
+        title={!src ? undefined : "Foto indisponível offline"}
+      >
+        <ImageOff className="h-4 w-4" />
+      </div>
     );
   }
 
@@ -40,6 +50,7 @@ export function ProductImage({ src, alt, className }: ProductImageProps) {
           alt={alt}
           className="h-full w-full object-contain"
           loading="lazy"
+          onError={() => setFailed(true)}
         />
       </button>
       <Dialog open={open} onOpenChange={setOpen}>
