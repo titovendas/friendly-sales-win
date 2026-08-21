@@ -28,7 +28,7 @@ export default defineConfig({
           // servidos a partir da raiz — sem isso o cache aponta para /client/...
           // e nada é encontrado quando o app abre sem internet.
           manifestTransforms: [
-            (entries: { url: string }[]) => ({
+            ((entries: any[]) => ({
               manifest: entries.map((entry) => ({
                 ...entry,
                 url: entry.url.replace(/^client\//, ""),
