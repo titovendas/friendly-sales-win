@@ -1,15 +1,14 @@
 import { useEffect, useState } from "react";
-import { WifiOff, RefreshCw, CheckCircle2 } from "lucide-react";
+import { WifiOff, RefreshCw, CheckCircle2, ImageDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   syncCatalog,
   getCatalogSyncedAt,
   getOfflineCatalogCount,
+  prefetchAllProductImages,
 } from "@/lib/offline-catalog";
 import { syncPendingData, pendingCount } from "@/lib/offline-queue";
 import { toast } from "sonner";
-import { InstallAppButton } from "@/components/layout/install-app-button";
-
 
 function formatSyncedAt(iso: string | null) {
   if (!iso) return "nunca sincronizado";
@@ -32,6 +31,8 @@ export function CatalogSyncStatus() {
   const [count, setCount] = useState(0);
   const [pending, setPending] = useState(0);
   const [syncing, setSyncing] = useState(false);
+  const [downloadingImages, setDownloadingImages] = useState(false);
+  const [imageProgress, setImageProgress] = useState<string | null>(null);
 
   const refreshStatus = async () => {
     setSyncedAt(await getCatalogSyncedAt());
@@ -77,6 +78,28 @@ export function CatalogSyncStatus() {
     }
   };
 
+  const handleDownloadImages = async () => {
+    setDownloadingImages(true);
+    setImageProgress("Iniciando...");
+    try {
+      const result = await prefetchAllProductImages((done, total) => {
+        setImageProgress(`${done} de ${total}`);
+      });
+      if (result.total === 0) {
+        toast.info("Sincronize o catálogo primeiro.");
+      } else {
+        toast.success(
+          `${result.downloaded} de ${result.total} fotos salvas para uso offline.`
+        );
+      }
+    } catch {
+      toast.error("Não foi possível baixar as fotos agora.");
+    } finally {
+      setDownloadingImages(false);
+      setImageProgress(null);
+    }
+  };
+
   return (
     <div className="space-y-1.5 rounded-md border border-border bg-muted/40 p-2.5 text-xs">
       <div className="flex items-center gap-1.5">
@@ -112,8 +135,20 @@ export function CatalogSyncStatus() {
         <RefreshCw className={`mr-1.5 h-3 w-3 ${syncing ? "animate-spin" : ""}`} />
         {syncing ? "Sincronizando..." : "Sincronizar agora"}
       </Button>
-      <InstallAppButton />
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="h-7 w-full text-xs"
+        onClick={handleDownloadImages}
+        disabled={downloadingImages || !online}
+        title="Baixa as fotos de todos os produtos do catálogo para aparecerem mesmo sem internet"
+      >
+        <ImageDown className="mr-1.5 h-3 w-3" />
+        {downloadingImages
+          ? `Baixando fotos... ${imageProgress ?? ""}`
+          : "Baixar fotos p/ offline"}
+      </Button>
     </div>
   );
 }
-
