@@ -28,20 +28,23 @@ export default defineConfig({
           // servidos a partir da raiz — sem isso o cache aponta para /client/...
           // e nada é encontrado quando o app abre sem internet.
           manifestTransforms: [
-            (entries: { url: string }[]) => ({
+            ((entries: any[]) => ({
               manifest: entries.map((entry) => ({
                 ...entry,
                 url: entry.url.replace(/^client\//, ""),
               })),
               warnings: [],
-            }),
+            })) as any,
           ],
-          // Sem HTML estático para usar como fallback: as páginas visitadas
-          // ficam guardadas pelo NetworkFirst abaixo.
-          navigateFallback: undefined,
+          // A home é pré-baixada na instalação e serve de "casca" do app
+          // quando o usuário abre uma URL que ainda não foi visitada offline.
+          additionalManifestEntries: [{ url: "/", revision: `${Date.now()}` }],
+          navigateFallback: "/",
+          navigateFallbackDenylist: [/^\/_serverFn/, /^\/~oauth/, /^\/api\//],
           cleanupOutdatedCaches: true,
           clientsClaim: true,
           skipWaiting: true,
+
           runtimeCaching: [
             {
               urlPattern: ({ request }: { request: Request }) =>
