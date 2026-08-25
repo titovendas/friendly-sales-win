@@ -9,6 +9,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -83,6 +84,7 @@ export function OrderForm({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
+  const [removeIndex, setRemoveIndex] = useState<number | null>(null);
   const [selectedQty, setSelectedQty] = useState(1);
 
   const { data: catalogResult, isLoading: catalogLoading } = useQuery({
@@ -286,6 +288,7 @@ export function OrderForm({
                           type="number"
                           min={1}
                           value={item.quantity}
+                          onFocus={(e) => e.target.select()}
                           onChange={(e) =>
                             setItems((prev) =>
                               prev.map((i, idx) =>
@@ -303,6 +306,7 @@ export function OrderForm({
                           type="text"
                           inputMode="decimal"
                           value={formatDecimalInput(item.unit_price)}
+                          onFocus={(e) => e.target.select()}
                           onChange={(e) =>
                             setItems((prev) =>
                               prev.map((i, idx) =>
@@ -340,9 +344,7 @@ export function OrderForm({
                           type="button"
                           variant="ghost"
                           size="icon"
-                          onClick={() =>
-                            setItems((prev) => prev.filter((_, i) => i !== index))
-                          }
+                          onClick={() => setRemoveIndex(index)}
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
@@ -390,9 +392,7 @@ export function OrderForm({
                       variant="ghost"
                       size="icon"
                       className="shrink-0"
-                      onClick={() =>
-                        setItems((prev) => prev.filter((_, i) => i !== index))
-                      }
+                      onClick={() => setRemoveIndex(index)}
                     >
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
@@ -405,6 +405,7 @@ export function OrderForm({
                         type="number"
                         min={1}
                         value={item.quantity}
+                        onFocus={(e) => e.target.select()}
                         onChange={(e) =>
                           setItems((prev) =>
                             prev.map((i, idx) =>
@@ -425,6 +426,7 @@ export function OrderForm({
                         type="text"
                         inputMode="decimal"
                         value={formatDecimalInput(item.unit_price)}
+                        onFocus={(e) => e.target.select()}
                         onChange={(e) =>
                           setItems((prev) =>
                             prev.map((i, idx) =>
@@ -544,6 +546,7 @@ export function OrderForm({
                   type="number"
                   min={1}
                   value={selectedQty}
+                  onFocus={(e) => e.target.select()}
                   onChange={(e) => setSelectedQty(parseInt(e.target.value) || 1)}
                   className="w-24 text-center text-lg"
                   autoFocus
@@ -635,6 +638,33 @@ export function OrderForm({
               </div>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={removeIndex !== null} onOpenChange={(open) => !open && setRemoveIndex(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Remover produto</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            {removeIndex !== null &&
+              `Tem certeza que deseja remover "${items[removeIndex]?.description}" do orçamento?`}
+          </p>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setRemoveIndex(null)}>
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => {
+                setItems((prev) => prev.filter((_, i) => i !== removeIndex));
+                setRemoveIndex(null);
+              }}
+            >
+              Remover
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
