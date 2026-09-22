@@ -55,14 +55,18 @@ export async function getCatalogSyncedAt(): Promise<string | null> {
   return (await get(SYNCED_AT_KEY)) ?? null;
 }
 
-const IMAGE_CACHE_NAME = "fv-images-v1";
+// Mesmo nome de cache que o service worker gerado pelo Lovable usa para
+// fotos de produtos (regra "fv-fotos-produtos" em vite.config.ts), para que
+// o download em massa abaixo realmente seja aproveitado nas próximas vezes
+// que o app pedir essas fotos offline.
+const IMAGE_CACHE_NAME = "fv-fotos-produtos";
 
 /**
  * Baixa as fotos de todos os produtos do catálogo local e guarda no mesmo
- * "cofre" de imagens que o service worker usa, para ficarem disponíveis
- * offline mesmo sem o vendedor ter visto o produto antes. Roda aos poucos
- * (em lotes), e chama onProgress a cada lote para atualizar algum
- * indicador na tela, se quiser.
+ * cache que o service worker do app já usa para fotos de produto, para
+ * ficarem disponíveis offline mesmo sem o vendedor ter visto o produto
+ * antes. Roda aos poucos (em lotes), e chama onProgress a cada lote para
+ * atualizar algum indicador na tela, se quiser.
  */
 export async function prefetchAllProductImages(
   onProgress?: (done: number, total: number) => void
