@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Settings, CreditCard, ChevronRight } from "lucide-react";
+import { Settings, CreditCard, Flame, ChevronRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
 export const Route = createFileRoute("/_authenticated/configuracoes")({
@@ -18,6 +18,12 @@ const sections = [
     icon: CreditCard,
     title: "Prazos de pagamento",
     description: "Importar e gerenciar os prazos usados nos pedidos.",
+  },
+  {
+    to: "/configuracoes/campanha",
+    icon: Flame,
+    title: "Itens em campanha",
+    description: "Importar a tabela de preços promocionais do mês.",
   },
 ];
 
