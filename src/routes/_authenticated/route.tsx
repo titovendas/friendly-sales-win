@@ -8,6 +8,7 @@ import {
   syncCustomersInBackground,
   syncDefaultSellerName,
   syncPaymentTerms,
+  syncCampaignItems,
 } from "@/lib/offline-customers";
 import { syncPendingData } from "@/lib/offline-queue";
 
@@ -16,6 +17,7 @@ function syncEverythingInBackground() {
   syncCustomersInBackground();
   syncDefaultSellerName();
   syncPaymentTerms();
+  syncCampaignItems();
   syncPendingData().catch(() => {});
 }
 
