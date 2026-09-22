@@ -108,6 +108,112 @@ export const clearPaymentTerms = createServerFn({ method: "POST" })
     return { success: true };
   });
 
+// Itens em campanha/promoção
+export const listCampaignItems = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { data, error } = await supabase
+      .from("campaign_items")
+      .select(
+        "*, product:catalog_products(id, code, description, image_url, ipi_percent, st_percent)"
+      )
+      .eq("user_id", userId)
+      .eq("active", true)
+      .order("code");
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  });
+
+/**
+ * Importa a tabela de campanha (código + preço promocional). Casa cada
+ * código com o catálogo já cadastrado (para herdar descrição, foto, IPI e
+ * ST); códigos sem correspondência ainda são salvos, mas ficam sem
+ * catalog_product_id e o vendedor é avisado na tela.
+ */
+export const importCampaignItems = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) =>
+    z
+      .object({
+        rows: z.array(
+          z.object({
+            code: z.string().min(1),
+            price: z.coerce.number().min(0),
+          })
+        ),
+      })
+      .parse(data)
+  )
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+
+    const codes = Array.from(new Set(data.rows.map((r) => r.code.trim())));
+    if (codes.length === 0) {
+      throw new Error("Nenhum item válido encontrado na planilha.");
+    }
+
+    const { data: catalogMatches, error: catalogError } = await supabase
+      .from("catalog_products")
+      .select("id, code")
+      .in("code", codes);
+    if (catalogError) throw new Error(catalogError.message);
+
+    const codeToProductId = new Map(
+      (catalogMatches ?? []).map((p) => [p.code.toLowerCase(), p.id])
+    );
+
+    const rowsByCode = new Map<string, number>();
+    for (const row of data.rows) {
+      rowsByCode.set(row.code.trim(), row.price);
+    }
+
+    const upsertRows = Array.from(rowsByCode.entries()).map(([code, price]) => ({
+      user_id: userId,
+      code,
+      campaign_price: price,
+      catalog_product_id: codeToProductId.get(code.toLowerCase()) ?? null,
+      active: true,
+    }));
+
+    const { error } = await supabase
+      .from("campaign_items")
+      .upsert(upsertRows, { onConflict: "user_id,code" });
+    if (error) throw new Error(error.message);
+
+    const unmatched = upsertRows
+      .filter((r) => !r.catalog_product_id)
+      .map((r) => r.code);
+
+    return { imported: upsertRows.length, unmatched };
+  });
+
+export const deleteCampaignItem = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) => z.object({ id: z.string().uuid() }).parse(data))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const { error } = await supabase
+      .from("campaign_items")
+      .delete()
+      .eq("id", data.id)
+      .eq("user_id", userId);
+    if (error) throw new Error(error.message);
+    return { success: true };
+  });
+
+export const clearCampaignItems = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { error } = await supabase
+      .from("campaign_items")
+      .delete()
+      .eq("user_id", userId);
+    if (error) throw new Error(error.message);
+    return { success: true };
+  });
+
 const customerSchema = z.object({
   id: optionalId,
   name: z.string().min(1),
