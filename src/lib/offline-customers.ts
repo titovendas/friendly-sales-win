@@ -3,6 +3,7 @@ import {
   listCustomers,
   listSellers,
   listPaymentTerms,
+  listCampaignItems,
   DEFAULT_PAYMENT_TERMS,
 } from "@/lib/sales.functions";
 
@@ -10,6 +11,7 @@ const CUSTOMERS_KEY = "fv:customers:v1";
 const CUSTOMERS_SYNCED_AT_KEY = "fv:customers:syncedAt";
 const SELLER_NAME_KEY = "fv:defaultSellerName";
 const PAYMENT_TERMS_KEY = "fv:paymentTerms:v1";
+const CAMPAIGN_ITEMS_KEY = "fv:campaignItems:v1";
 
 let syncInFlight: Promise<any[]> | null = null;
 
@@ -87,4 +89,43 @@ export async function getPaymentTermsOfflineAware(): Promise<
   const cached = (await get<{ id: string; label: string }[]>(PAYMENT_TERMS_KEY)) ?? [];
   if (cached.length > 0) return cached;
   return DEFAULT_PAYMENT_TERMS.map((label) => ({ id: label, label }));
+}
+
+export type CampaignItemSimplified = {
+  catalog_product_id: string | null;
+  campaign_price: number;
+};
+
+export async function syncCampaignItems(): Promise<CampaignItemSimplified[] | null> {
+  try {
+    const rows = await listCampaignItems();
+    const simplified = (rows as any[]).map((r) => ({
+      catalog_product_id: r.catalog_product_id,
+      campaign_price: Number(r.campaign_price),
+    }));
+    await set(CAMPAIGN_ITEMS_KEY, simplified);
+    return simplified;
+  } catch {
+    return null;
+  }
+}
+
+/** Mapa catalog_product_id -> preço de campanha, pronto para consulta
+ * rápida ao montar um orçamento. Tenta o servidor, cai para a cópia local. */
+export async function getCampaignPriceMapOfflineAware(): Promise<
+  Map<string, number>
+> {
+  const isOnline = typeof navigator === "undefined" || navigator.onLine;
+  let items: CampaignItemSimplified[] | null = null;
+  if (isOnline) {
+    items = await syncCampaignItems();
+  }
+  if (!items) {
+    items = (await get<CampaignItemSimplified[]>(CAMPAIGN_ITEMS_KEY)) ?? [];
+  }
+  const map = new Map<string, number>();
+  for (const item of items) {
+    if (item.catalog_product_id) map.set(item.catalog_product_id, item.campaign_price);
+  }
+  return map;
 }
