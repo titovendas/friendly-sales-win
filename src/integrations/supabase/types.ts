@@ -292,6 +292,44 @@ export type Database = {
         }
         Relationships: []
       }
+      campaign_items: {
+        Row: {
+          active: boolean
+          campaign_price: number
+          catalog_product_id: string | null
+          code: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          campaign_price: number
+          catalog_product_id?: string | null
+          code: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          campaign_price?: number
+          catalog_product_id?: string | null
+          code?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_items_catalog_product_id_fkey"
+            columns: ["catalog_product_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           active: boolean
