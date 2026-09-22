@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Plus, Search, Trash2, ArrowLeft, Minus } from "lucide-react";
+import { Plus, Search, Trash2, ArrowLeft, Minus, Flame } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,7 +31,7 @@ import {
 import { searchCatalog } from "@/lib/offline-catalog";
 import { formatCurrency } from "@/lib/sales-formatters";
 import { PRICE_TABLES, catalogPrice, type PriceTable } from "@/lib/price-tables";
-import { getPaymentTermsOfflineAware } from "@/lib/offline-customers";
+import { getPaymentTermsOfflineAware, getCampaignPriceMapOfflineAware } from "@/lib/offline-customers";
 
 /** Mostra sempre com 2 casas decimais e vírgula (padrão BR), ex: 4,80. */
 function formatDecimalInput(value: number) {
@@ -56,6 +56,7 @@ export type FormItem = {
   ipi_percent: number;
   st_percent: number;
   prices: { atacado: number; varejo_10: number; varejo_75: number };
+  is_campaign?: boolean;
 };
 
 type Props = {
@@ -100,6 +101,12 @@ export function OrderForm({
     queryFn: () => getPaymentTermsOfflineAware(),
   });
 
+  const { data: campaignMap } = useQuery({
+    queryKey: ["campaign-items"],
+    queryFn: () => getCampaignPriceMapOfflineAware(),
+  });
+  const campaign = campaignMap ?? new Map<string, number>();
+
   const customerOptions = useMemo(
     () =>
       customers.map((c) => ({
@@ -131,14 +138,16 @@ export function OrderForm({
   const changePriceTable = (table: PriceTable) => {
     setPriceTable(table);
     setItems((prev) =>
-      prev.map((i) => ({
-        ...i,
-        unit_price: i.prices?.[table] ?? i.unit_price,
-      }))
+      prev.map((i) =>
+        i.is_campaign
+          ? i // preço de campanha não muda com a tabela de preço
+          : { ...i, unit_price: i.prices?.[table] ?? i.unit_price }
+      )
     );
   };
 
   const addProduct = (product: any, quantity: number) => {
+    const campaignPrice = campaign.get(product.id);
     setItems((prev) => {
       const existing = prev.find((i) => i.catalog_product_id === product.id);
       if (existing) {
@@ -156,7 +165,7 @@ export function OrderForm({
           description: product.description,
           image_url: product.image_url ?? null,
           quantity,
-          unit_price: catalogPrice(product, priceTable),
+          unit_price: campaignPrice ?? catalogPrice(product, priceTable),
           ipi_percent: Number(product.ipi_percent ?? 0),
           st_percent: Number(product.st_percent ?? 0),
           prices: {
@@ -164,6 +173,7 @@ export function OrderForm({
             varejo_10: Number(product.price_varejo_10 ?? 0),
             varejo_75: Number(product.price_varejo_75 ?? 0),
           },
+          is_campaign: campaignPrice !== undefined,
         },
       ];
     });
@@ -281,6 +291,12 @@ export function OrderForm({
                       </TableCell>
                       <TableCell className="font-mono text-xs">{item.code}</TableCell>
                       <TableCell className="max-w-[280px] truncate text-sm">
+                        {item.is_campaign && (
+                          <Flame
+                            className="mr-1 inline h-3.5 w-3.5 shrink-0 text-red-600"
+                            aria-label="Em campanha"
+                          />
+                        )}
                         {item.description}
                       </TableCell>
                       <TableCell>
@@ -384,6 +400,12 @@ export function OrderForm({
                         {item.code}
                       </p>
                       <p className="text-sm font-medium leading-snug">
+                        {item.is_campaign && (
+                          <Flame
+                            className="mr-1 inline h-3.5 w-3.5 shrink-0 text-red-600"
+                            aria-label="Em campanha"
+                          />
+                        )}
                         {item.description}
                       </p>
                     </div>
@@ -524,11 +546,29 @@ export function OrderForm({
                   className="h-16 w-16 shrink-0"
                 />
                 <div className="min-w-0 flex-1">
-                  <p className="font-medium">{selectedProduct.description}</p>
+                  <p className="flex items-center gap-1.5 font-medium">
+                    {campaign.get(selectedProduct.id) !== undefined && (
+                      <span className="inline-flex items-center gap-1 rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-red-600">
+                        <Flame className="h-3 w-3" /> Promoção
+                      </span>
+                    )}
+                    {selectedProduct.description}
+                  </p>
                   <p className="text-sm text-muted-foreground">
                     Cód. {selectedProduct.code} ·{" "}
-                    {formatCurrency(catalogPrice(selectedProduct, priceTable))} /
-                    un.
+                    <span
+                      className={
+                        campaign.get(selectedProduct.id) !== undefined
+                          ? "font-semibold text-red-600"
+                          : undefined
+                      }
+                    >
+                      {formatCurrency(
+                        campaign.get(selectedProduct.id) ??
+                          catalogPrice(selectedProduct, priceTable)
+                      )}
+                    </span>{" "}
+                    / un.
                   </p>
                 </div>
               </div>
@@ -565,7 +605,8 @@ export function OrderForm({
                 Subtotal:{" "}
                 <span className="font-medium text-foreground">
                   {formatCurrency(
-                    catalogPrice(selectedProduct, priceTable) * selectedQty
+                    (campaign.get(selectedProduct.id) ??
+                      catalogPrice(selectedProduct, priceTable)) * selectedQty
                   )}
                 </span>
               </p>
@@ -604,7 +645,9 @@ export function OrderForm({
                     Nenhum produto encontrado.
                   </p>
                 ) : (
-                  catalog.map((p: any) => (
+                  catalog.map((p: any) => {
+                    const promoPrice = campaign.get(p.id);
+                    return (
                     <div
                       key={p.id}
                       role="button"
@@ -624,16 +667,32 @@ export function OrderForm({
                         className="h-12 w-12 shrink-0"
                       />
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium">{p.description}</p>
+                        <p className="flex items-center gap-1 truncate text-sm font-medium">
+                          {promoPrice !== undefined && (
+                            <Flame
+                              className="h-3.5 w-3.5 shrink-0 text-red-600"
+                              aria-label="Em campanha"
+                            />
+                          )}
+                          {p.description}
+                        </p>
                         <p className="text-xs text-muted-foreground">
                           Cód. {p.code} · IPI {p.ipi_percent}% · ST {p.st_percent}%
                         </p>
                       </div>
-                      <div className="text-right text-sm font-semibold">
-                        {formatCurrency(catalogPrice(p, priceTable))}
+                      <div className="text-right">
+                        {promoPrice !== undefined && (
+                          <p className="text-[10px] font-semibold uppercase text-red-600">
+                            Promoção
+                          </p>
+                        )}
+                        <p className={promoPrice !== undefined ? "text-sm font-bold text-red-600" : "text-sm font-semibold"}>
+                          {formatCurrency(promoPrice ?? catalogPrice(p, priceTable))}
+                        </p>
                       </div>
                     </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </>
